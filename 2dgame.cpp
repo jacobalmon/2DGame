@@ -1,14 +1,9 @@
-#include <raylib.h>
+#include "raylib.h"
+#include "Character.h"
 #include <iostream>
-#include "Samurai.h"
-#include "Goblin.h"
 
-bool checkCharacterCollision(const Rectangle& rect1, const Rectangle& rect2)
-{
-  return CheckCollisionRecs(rect1,rect2);
-}
-int main() 
-{
+int main() {
+    // Initialize window
     InitWindow(800, 600, "2D Game");
 
     // Define floor parameters
@@ -23,46 +18,53 @@ int main()
     Goblin goblin((Vector2) {500, GROUND_LEVEL - 100});  // Adjust Y position based on character height
     goblin.loadTextures();
 
-    // Set FPS at 60.
+    // Set FPS at 60
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
+        float deltaTime = GetFrameTime();
+        
+        // Update character states and movement
         samurai.move();
         goblin.move();
 
-        //previous positions
+        // Store previous positions
         Vector2 prevSamuraiPos = { samurai.rect.x, samurai.rect.y };
         Vector2 prevGoblinPos = { goblin.rect.x, goblin.rect.y };
 
-        //apply velocity
+        // Apply velocity
         samurai.applyVelocity();
         goblin.applyVelocity();
+        
+        // Update combat states
+        samurai.updateCombatState(deltaTime);
+        goblin.updateCombatState(deltaTime);
 
         // Begin drawing
         BeginDrawing();
-        ClearBackground(SKYBLUE);  // Sky blue background
+        ClearBackground(SKYBLUE);
 
         // Draw the floor
         DrawRectangleRec(floor, DARKGREEN);
 
-        // Draw the characters
-        samurai.draw();  // Draw samurai
-        goblin.draw();   // Draw goblin
-
-        if(checkCharacterCollision(samurai.rect,goblin.rect))
+        // Handle collisions and combat
+        if(checkCharacterCollision(samurai.rect, goblin.rect))
         {
             // Handle attack-based collisions first
-            if (samurai.state == ATTACK)
+            if (samurai.state == ATTACK && !goblin.isInvulnerable)
             {
+                goblin.takeDamage(samurai.attackDamage);
                 goblin.rect.x = prevGoblinPos.x;
                 goblin.rect.y = prevGoblinPos.y;
-                goblin.velocity.x = samurai.direction * 200.0f; // Knockback in samurai's facing direction
+                goblin.velocity.x = samurai.direction * 200.0f; // Knockback
             }
-            else if(goblin.state == ATTACK_CLUB || goblin.state == ATTACK_STOMP || goblin.state == ATTACK_AOE)
+            else if((goblin.state == ATTACK_CLUB || goblin.state == ATTACK_STOMP || goblin.state == ATTACK_AOE) 
+                    && !samurai.isInvulnerable)
             {
+                samurai.takeDamage(goblin.attackDamage);
                 samurai.rect.x = prevSamuraiPos.x;
                 samurai.rect.y = prevSamuraiPos.y;
-                samurai.velocity.x = goblin.direction * 200.0f; // Knockback in goblin's facing direction
+                samurai.velocity.x = goblin.direction * 200.0f; // Knockback
             }
             else // Normal collision resolution
             {
@@ -84,19 +86,11 @@ int main()
                     {
                         samurai.rect.x -= overlapX / 2.0f;
                         goblin.rect.x += overlapX / 2.0f;
-                        
-                        // Reset horizontal velocities
-                        if (samurai.velocity.x > 0) samurai.velocity.x = 0;
-                        if (goblin.velocity.x < 0) goblin.velocity.x = 0;
                     } 
                     else 
                     {
                         samurai.rect.x += overlapX / 2.0f;
                         goblin.rect.x -= overlapX / 2.0f;
-                        
-                        // Reset horizontal velocities
-                        if (samurai.velocity.x < 0) samurai.velocity.x = 0;
-                        if (goblin.velocity.x > 0) goblin.velocity.x = 0;
                     }
                 }
                 else
@@ -106,32 +100,47 @@ int main()
                     {
                         samurai.rect.y -= overlapY / 2.0f;
                         goblin.rect.y += overlapY / 2.0f;
-                        
-                        // Reset vertical velocities
-                        if (samurai.velocity.y > 0) samurai.velocity.y = 0;
-                        if (goblin.velocity.y < 0) goblin.velocity.y = 0;
                     } 
                     else 
                     {
                         samurai.rect.y += overlapY / 2.0f;
                         goblin.rect.y -= overlapY / 2.0f;
-                        
-                        // Reset vertical velocities
-                        if (samurai.velocity.y < 0) samurai.velocity.y = 0;
-                        if (goblin.velocity.y > 0) goblin.velocity.y = 0;
                     }
                 }
             }
         }
+
+        // Draw characters
+        samurai.draw();
+        goblin.draw();
         
+        // Draw health bars
+        samurai.drawHealthBar();
+        goblin.drawHealthBar();
+        
+        // Draw hit feedback
+        if (samurai.isInvulnerable) {
+            DrawText("INVULNERABLE!", (int)samurai.rect.x, (int)samurai.rect.y - 40, 20, RED);
+        }
+        if (goblin.isInvulnerable) {
+            DrawText("INVULNERABLE!", (int)goblin.rect.x, (int)goblin.rect.y - 40, 20, RED);
+        }
+        
+        // Check for defeat
+        if (!samurai.isAlive()) {
+            DrawText("GAME OVER - Goblin Wins!", 300, 250, 30, RED);
+        }
+        if (!goblin.isAlive()) {
+            DrawText("VICTORY - Samurai Wins!", 300, 250, 30, GREEN);
+        }
+
         samurai.updateAnimation();
         goblin.updateAnimation();
 
-        EndDrawing();  // End drawing and display the frame
+        EndDrawing();
     }
-    
 
+    // De-Initialization
     CloseWindow();
     return 0;
-}
-
+} 
