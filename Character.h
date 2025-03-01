@@ -260,9 +260,6 @@ public:
         Rectangle frameRec = { 0, 0, (float)idleTexture.width/6, (float)idleTexture.height };
         frameRec.x = currentFrame * frameRec.width;
         
-        Vector2 pos = { rect.x, rect.y };
-        float scale = 2.0f;
-        
         Texture2D* currentTexture = &idleTexture;
         
         switch(state) {
@@ -288,20 +285,23 @@ public:
                 currentTexture = &idleTexture;
         }
         
+        // Recalculate frame width based on the current texture
+        frameRec.width = (float)currentTexture->width/6;
+        
         Color tint = isInvulnerable ? ColorAlpha(WHITE, 0.5f) : WHITE;
         
-        // Calculate the destination rectangle
+        // Calculate the destination rectangle - align bottom with floor
         Rectangle destRec = {
-            pos.x + (direction < 0 ? rect.width : 0),  // Adjust X position when facing left
-            pos.y,
-            frameRec.width * scale * (direction < 0 ? -1.0f : 1.0f),  // Flip width when facing left
-            frameRec.height * scale
+            rect.x + (direction < 0 ? rect.width : 0),  // Adjust X position when facing left
+            rect.y - (frameRec.height * 2.0f - rect.height),  // Align bottom with character rect
+            frameRec.width * 2.0f * (direction < 0 ? -1.0f : 1.0f),  // Flip width when facing left
+            frameRec.height * 2.0f
         };
         
         DrawTexturePro(*currentTexture, frameRec, destRec, Vector2{0, 0}, 0.0f, tint);
         
         // Debug: Draw collision box
-        // DrawRectangleLinesEx(rect, 1, GREEN);
+        DrawRectangleLinesEx(rect, 1, GREEN);
     }
     
     void updateAnimation() override {
@@ -482,15 +482,15 @@ public:
             Rectangle frameRec = {
                 currentFrame * frameWidth,
                 0,
-                direction > 0 ? frameWidth : -frameWidth, // Flip horizontally if facing left
+                frameWidth,
                 frameHeight
             };
             
-            // Calculate the destination rectangle
+            // Calculate the destination rectangle - align bottom with character rect
             Rectangle destRec = {
-                rect.x,
+                rect.x + (direction < 0 ? rect.width : 0), // Adjust X position when facing left
                 rect.y - (frameHeight * scale - rect.height), // Align bottom with character rect
-                frameWidth * scale,
+                frameWidth * scale * (direction < 0 ? -1.0f : 1.0f), // Flip width when facing left
                 frameHeight * scale
             };
             
