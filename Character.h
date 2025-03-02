@@ -329,6 +329,7 @@ private:
     float attackCooldown;
     float aiTimer;
     float aiDecisionTime;
+    float frameInterpolation; // Add frame interpolation for smoother animations
     
 public:
     Goblin(Vector2 position) : Character(position) {
@@ -341,6 +342,7 @@ public:
         attackCooldown = 1.0f;
         aiTimer = 0;
         aiDecisionTime = 2.0f;
+        frameInterpolation = 0.0f;
         
         idleTexture = { 0 };
         walkTexture = { 0 };
@@ -499,8 +501,8 @@ public:
             // Draw the sprite
             DrawTexturePro(*currentTexture, frameRec, destRec, Vector2{0, 0}, 0.0f, tint);
             
-            // Debug: Draw collision box
-            DrawRectangleLinesEx(rect, 1, GREEN);
+            // Debug: Draw collision box (uncomment for debugging)
+            // DrawRectangleLinesEx(rect, 1, GREEN);
         }
     }
     
@@ -591,21 +593,27 @@ public:
                 maxFrames = 7; // Use idle frames for hurt
                 break;
             default: // IDLE
-                animationSpeed = 0.15f;
+                animationSpeed = 0.07f; // Even faster animation for smoother idle
                 maxFrames = 7;
         }
+        
+        // Update frame interpolation for smoother transitions
+        frameInterpolation += deltaTime / animationSpeed;
         
         // Update frame when timer exceeds animation speed
         if (animationTimer >= animationSpeed) {
             animationTimer = 0;
             currentFrame++;
+            frameInterpolation = 0.0f; // Reset interpolation
             
             // Reset animation or transition to idle after attack
             if (currentFrame >= maxFrames) {
                 if (state == ATTACK_CLUB || state == ATTACK_STOMP || state == ATTACK_AOE) {
                     state = IDLE;
+                    currentFrame = 0; // Reset frame when transitioning to idle
+                } else {
+                    currentFrame = 0;
                 }
-                currentFrame = 0;
             }
         }
         

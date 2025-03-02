@@ -194,7 +194,7 @@ endif
 #  -std=gnu99           defines C language mode (GNU C from 1999 revision)
 #  -Wno-missing-braces  ignore invalid warning (GCC bug 53119)
 #  -D_DEFAULT_SOURCE    use with -std=c99 on Linux and PLATFORM_WEB, required for timespec
-CFLAGS += -Wall -std=c++14 -D_DEFAULT_SOURCE -Wno-missing-braces
+CFLAGS += -Wall -std=c++17 -D_DEFAULT_SOURCE -Wno-missing-braces
 
 ifeq ($(BUILD_MODE),DEBUG)
     CFLAGS += -g -O0
@@ -370,7 +370,7 @@ OBJ_DIR = obj
 # Define all object files from source files
 SRC = $(call rwildcard, *.c, *.h)
 #OBJS = $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-OBJS ?= 2Dgame.cpp
+OBJS ?= 2Dgame.cpp parson.c
 
 # For Android platform we call a custom Makefile.Android
 ifeq ($(PLATFORM),PLATFORM_ANDROID)
@@ -381,10 +381,20 @@ else
     MAKEFILE_PARAMS = $(PROJECT_NAME)
 endif
 
-# Default target entry
-# NOTE: We call this Makefile target or Makefile.Android target
-all:
-	$(MAKE) $(MAKEFILE_PARAMS)
+# Default target
+all: $(PROJECT_NAME)
+
+# Aseprite test target
+aseprite_test: AsepriteTest.cpp AsepriteLoader.cpp parson.c
+	$(CC) -o aseprite_test $^ $(CFLAGS) $(INCLUDE_PATHS) $(LDFLAGS) $(LDLIBS)
+
+# Aseprite character test target
+aseprite_character_test: AsepriteCharacterTest.cpp AsepriteLoader.cpp parson.c
+	$(CC) -o aseprite_character_test $^ $(CFLAGS) $(INCLUDE_PATHS) $(LDFLAGS) $(LDLIBS)
+
+# Collision box test target
+collision_box_test: CollisionBoxTest.cpp
+	$(CC) -o collision_box_test $^ $(CFLAGS) $(INCLUDE_PATHS) $(LDFLAGS) $(LDLIBS)
 
 # Project target defined by PROJECT_NAME
 $(PROJECT_NAME): $(OBJS)
