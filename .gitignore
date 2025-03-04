@@ -14,3 +14,12 @@
 .vscode/
 .idea/
 .DS_Store
+
+# Ignore raylib header file
+raylib.h
+
+# Ignore all DLL files
+*.dll
+
+# Ignore game executable
+game
