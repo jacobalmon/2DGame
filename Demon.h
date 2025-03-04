@@ -41,6 +41,11 @@ class Demon {
         bool isAttacking = false;
         bool hasFinishedAttack = true;
 
+        // Health properties
+        int maxHealth = 100;
+        int currentHealth = 100;
+        bool isDead = false;
+
         std::vector<AnimationDemon> animations;
 
         Demon(Vector2 position) {
@@ -168,6 +173,42 @@ class Demon {
 
             // Draw the frame from the texture corresponding to the current animation frame
             DrawTexturePro(animations[state].frames[animations[state].currentFrame], source, dest, { 0, 0 }, 0.0f, WHITE);
+        }
+
+        // Draw the health bar above the Demon
+        void drawHealthBar() const {
+            float healthPercentage = (float)currentHealth / maxHealth;
+            float barWidth = 100.0f;
+            float barHeight = 10.0f;
+            float barX = rect.x;
+            float barY = rect.y + (rect.height * 5.0f) + 10.0f;  // Position below the Demon (5.0f is the scale factor)
+
+            // Draw background
+            DrawRectangle(barX, barY, barWidth, barHeight, DARKGRAY);
+            // Draw health bar
+            DrawRectangle(barX, barY, barWidth * healthPercentage, barHeight, GREEN);
+            // Draw health text
+            DrawText(TextFormat("%d/%d", currentHealth, maxHealth), barX, barY - 15.0f, 15, WHITE);
+        }
+
+        // Handle damage
+        void takeDamage(int damage) {
+            if (isDead) return;
+            currentHealth -= damage;
+            if (currentHealth <= 0) {
+                currentHealth = 0;
+                isDead = true;
+                state = DEAD_DEMON;
+            }
+        }
+
+        // Handle healing
+        void heal(int amount) {
+            if (isDead) return;
+            currentHealth += amount;
+            if (currentHealth > maxHealth) {
+                currentHealth = maxHealth;
+            }
         }
 
         void move() {

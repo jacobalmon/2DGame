@@ -47,6 +47,11 @@ public:
     bool isAttacking = false;    // Flag to check if Goblin is attacking
     bool hasFinishedAttack = true;  // Flag to check if the attack animation is finished
 
+    // Health properties
+    int maxHealth = 100;
+    int currentHealth = 100;
+    bool isDead = false;
+
     // Constructor initializing the Goblin's properties and animations
     Goblin(Vector2 position) {
         rect = (Rectangle) {position.x, position.y, 64.0f, 64.0f};  // Initial position and size
@@ -196,5 +201,41 @@ public:
     void applyVelocity() {
         rect.x += velocity.x * GetFrameTime();  // Update horizontal position
         rect.y += velocity.y * GetFrameTime();  // Update vertical position
+    }
+
+    // Draw the health bar above the Goblin
+    void drawHealthBar() const {
+        float healthPercentage = (float)currentHealth / maxHealth;
+        float barWidth = 100.0f;
+        float barHeight = 10.0f;
+        float barX = rect.x;
+        float barY = rect.y - 20.0f;  // Position above the Goblin
+
+        // Draw background
+        DrawRectangle(barX, barY, barWidth, barHeight, DARKGRAY);
+        // Draw health bar
+        DrawRectangle(barX, barY, barWidth * healthPercentage, barHeight, GREEN);
+        // Draw health text
+        DrawText(TextFormat("%d/%d", currentHealth, maxHealth), barX, barY - 15.0f, 15, WHITE);
+    }
+
+    // Handle damage
+    void takeDamage(int damage) {
+        if (isDead) return;
+        currentHealth -= damage;
+        if (currentHealth <= 0) {
+            currentHealth = 0;
+            isDead = true;
+            state = DEAD_GOBLIN;
+        }
+    }
+
+    // Handle healing
+    void heal(int amount) {
+        if (isDead) return;
+        currentHealth += amount;
+        if (currentHealth > maxHealth) {
+            currentHealth = maxHealth;
+        }
     }
 };

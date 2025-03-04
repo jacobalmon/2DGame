@@ -46,6 +46,11 @@ class Wizard {
         bool isAttacking = false;
         bool hasFinishedAttack = true;
 
+        // Health properties
+        int maxHealth = 100;
+        int currentHealth = 100;
+        bool isDead = false;
+
         Wizard(Vector2 position) {
             rect = {position.x, position.y, 64.0f, 64.0f};  
             velocity = {0.0f, 0.0f}; 
@@ -121,6 +126,42 @@ class Wizard {
             }
     
             DrawTexturePro(sprites[state], source, dest, { 0, 0 }, 0.0f, WHITE);
+        }
+
+        // Draw the health bar above the Wizard
+        void drawHealthBar() const {
+            float healthPercentage = (float)currentHealth / maxHealth;
+            float barWidth = 100.0f;
+            float barHeight = 10.0f;
+            float barX = rect.x;
+            float barY = rect.y - 20.0f;  // Position above the Wizard
+
+            // Draw background
+            DrawRectangle(barX, barY, barWidth, barHeight, DARKGRAY);
+            // Draw health bar
+            DrawRectangle(barX, barY, barWidth * healthPercentage, barHeight, GREEN);
+            // Draw health text
+            DrawText(TextFormat("%d/%d", currentHealth, maxHealth), barX, barY - 15.0f, 15, WHITE);
+        }
+
+        // Handle damage
+        void takeDamage(int damage) {
+            if (isDead) return;
+            currentHealth -= damage;
+            if (currentHealth <= 0) {
+                currentHealth = 0;
+                isDead = true;
+                state = DEAD_WIZARD;
+            }
+        }
+
+        // Handle healing
+        void heal(int amount) {
+            if (isDead) return;
+            currentHealth += amount;
+            if (currentHealth > maxHealth) {
+                currentHealth = maxHealth;
+            }
         }
 
         void move() {

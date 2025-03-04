@@ -345,8 +345,8 @@ public:
     void drawHealthBar() {
         float healthPercentage = (float)currentHealth / maxHealth;
         DrawRectangle(20, 20, 200, 20, DARKGRAY); // Health bar background.
-        DrawRectangle(20, 20, (int)(200 * healthPercentage), 20, RED); // Health bar foreground.
-        DrawText(TextFormat("Health: %d/%d", currentHealth, maxHealth), 20, 45, 20, WHITE); // Display health.
+        DrawRectangle(20, 20, (int)(200 * healthPercentage), 20, GREEN); // Health bar foreground.
+        DrawText(TextFormat("%d/%d", currentHealth, maxHealth), 20, 45, 20, WHITE); // Display health.
     }
 
     // Update the samurai's state and perform actions.
