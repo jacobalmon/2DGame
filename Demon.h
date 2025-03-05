@@ -137,11 +137,11 @@ class Demon {
                 AnimationDemon& anim = animations[state];
                 float deltaTime = GetFrameTime();
                 anim.timeLeft -= deltaTime;
-        
+                
                 if (anim.timeLeft <= 0) {
                     anim.timeLeft = anim.speed;
                     anim.currentFrame++;
-        
+            
                     if (anim.currentFrame > anim.lastFrame) {
                         anim.currentFrame = anim.firstFrame;  // Restart or loop
                         state = IDLE_DEMON;  // After hurt, go back to idle
@@ -152,15 +152,16 @@ class Demon {
                 AnimationDemon& anim = animations[state];
                 float deltaTime = GetFrameTime();
                 anim.timeLeft -= deltaTime;
-        
+                
                 if (anim.timeLeft <= 0) {
                     anim.timeLeft = anim.speed;
                     anim.currentFrame++;
-        
+            
+                    // Play the death animation fully
                     if (anim.currentFrame > anim.lastFrame) {
-                        anim.currentFrame = anim.lastFrame;  // Stay on the last frame of dead animation
-                        // Do nothing after the dead animation completes
-                        return; // Dead state will not change to idle
+                        anim.currentFrame = anim.lastFrame;  // Stay on the last frame
+                        // Dead animation is complete, stay on the last frame
+                        return;  // Do nothing after the dead animation completes
                     }
                 }
             } else {
@@ -168,11 +169,11 @@ class Demon {
                 AnimationDemon& anim = animations[state];
                 float deltaTime = GetFrameTime();
                 anim.timeLeft -= deltaTime;
-        
+                
                 if (anim.timeLeft <= 0) {
                     anim.timeLeft = anim.speed;
                     anim.currentFrame++;
-        
+                
                     if (anim.currentFrame > anim.lastFrame) {
                         if (anim.type == REPEATING_DEMON) {
                             anim.currentFrame = anim.firstFrame; // Loop back to first frame
@@ -263,9 +264,13 @@ class Demon {
             if (health <= 0) {
                 health = 0;
                 isDead = true;
-                state = DEAD_DEMON;  // Change to dead animation
+                state = DEAD_DEMON;
+                
+                // Reset the death animation to start from the first frame
+                animations[DEAD_DEMON].currentFrame = animations[DEAD_DEMON].firstFrame;
             } else {
                 state = HURT_DEMON;  // Trigger hurt animation
             }
         }
+        
 };
