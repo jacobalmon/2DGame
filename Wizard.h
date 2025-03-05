@@ -1,9 +1,12 @@
-#include <raylib.h>
+#ifndef WIZARD_H
+#define WIZARD_H
+
+#include "raylib.h"
+#include "Character.h"
 #include <vector>
 
-const float GRAVITY_WIZARD = 800.0f;
-const float JUMP_FORCE_WIZARD = -400.0f;
-const float GROUND_LEVEL_WIZARD = 200.0f; 
+// Reference to the global collision box toggle
+extern bool showCollisionBoxes;
 
 enum DirectionWizard {
     LEFT_WIZARD = -1,
@@ -25,58 +28,55 @@ enum AnimationTypeWizard {
     ONESHOT_WIZARD
 };
 
-// Fix: Use struct instead of enum
 struct AnimationWizard {
     int firstFrame, lastFrame, currentFrame, offset;
     float speed, timeLeft;
     AnimationTypeWizard type;
 };
 
-class Wizard {
-    public:
-        Rectangle rect;
-        Vector2 velocity;
-        DirectionWizard direction;
-        CurrentStateWizard state;
-        bool isOnGround = true;
+const float GRAVITY_WIZARD = 800.0f;
+const float JUMP_FORCE_WIZARD = -500.0f;
+const float GROUND_LEVEL_WIZARD = 480.0f - 128.0f;  // Adjusted to match floor level
 
-        std::vector<AnimationWizard> animations;
+class Wizard : public Character {
+    private:
         std::vector<Texture2D> sprites;
+        std::vector<AnimationWizard> animations;
+        CurrentStateWizard state;
+        DirectionWizard direction;
+        bool isDead;
+        bool isOnGround;
+        bool hasFinishedAttack;
 
-        bool isAttacking = false;
-        bool hasFinishedAttack = true;
-
-        // Health properties
-        int maxHealth = 100;
-        int currentHealth = 100;
-        bool isDead = false;
-
-        Wizard(Vector2 position) {
-            rect = {position.x, position.y, 64.0f, 64.0f};  
-            velocity = {0.0f, 0.0f}; 
-            direction = RIGHT_WIZARD; 
-            state = IDLE_WIZARD; 
-
-            animations = {
-                {0, 7, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD},
-                {0, 7, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD},
-                {0, 7, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD},
-                {0, 2, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD},
-                {0, 7, 0, 0, 0.1f, 0.1f, REPEATING_WIZARD},
-                {0, 1, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD},
-                {0, 7, 0, 0, 0.1f, 0.1f, REPEATING_WIZARD}
-            }; 
+    public:
+        Wizard(Vector2 position) : Character(position) {
+            rect.width = 64;
+            rect.height = 128;
+            velocity = {0, 0};
+            direction = RIGHT_WIZARD;
+            state = IDLE_WIZARD;
+            currentHealth = 80;
+            maxHealth = 80;
+            attackDamage = 30;
+            isDead = false;
+            isOnGround = true;
+            hasFinishedAttack = true;
+            
+            // Initialize animations
+            sprites.resize(7);
+            animations.resize(7);
+            
+            // Place on floor
+            placeOnFloor();
         }
-
+        
         ~Wizard() {
             for (auto& sprite : sprites) {
                 UnloadTexture(sprite);
             }
         }
-
-        void loadTextures()  {
-            sprites.resize(7);
-
+        
+        void loadTextures() override {
             sprites[DEAD_WIZARD] = LoadTexture("assets/Wizard/Sprites/Death.png");
             sprites[ATTACK1_WIZARD] = LoadTexture("assets/Wizard/Sprites/Attack1.png");
             sprites[ATTACK2_WIZARD] = LoadTexture("assets/Wizard/Sprites/Attack2.png");
@@ -84,28 +84,40 @@ class Wizard {
             sprites[IDLE_WIZARD] = LoadTexture("assets/Wizard/Sprites/Idle.png");
             sprites[JUMP_WIZARD] = LoadTexture("assets/Wizard/Sprites/Jump.png");
             sprites[RUN_WIZARD] = LoadTexture("assets/Wizard/Sprites/Run.png");
+            
+            // Setup animations
+            animations[IDLE_WIZARD] = {0, 7, 0, 0, 0.1f, 0.1f, REPEATING_WIZARD};
+            animations[RUN_WIZARD] = {0, 7, 0, 0, 0.1f, 0.1f, REPEATING_WIZARD};
+            animations[JUMP_WIZARD] = {0, 1, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD};
+            animations[ATTACK1_WIZARD] = {0, 7, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD};
+            animations[ATTACK2_WIZARD] = {0, 7, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD};
+            animations[HURT_WIZARD] = {0, 2, 0, 0, 0.2f, 0.2f, ONESHOT_WIZARD};
+            animations[DEAD_WIZARD] = {0, 6, 0, 0, 0.2f, 0.2f, ONESHOT_WIZARD};
         }
-
-        void updateAnimation() {
+        
+        void updateAnimation() override {
             AnimationWizard& anim = animations[state];
-            float deltaTime = GetFrameTime();
-            anim.timeLeft -= deltaTime;
-    
+            anim.timeLeft -= GetFrameTime();
+            
             if (anim.timeLeft <= 0) {
                 anim.timeLeft = anim.speed;
-                anim.currentFrame++;
-    
-                if (anim.currentFrame > anim.lastFrame) {
-                    if (anim.type == REPEATING_WIZARD) {
-                        anim.currentFrame = anim.firstFrame;
+                
+                if (anim.type == REPEATING_WIZARD) {
+                    anim.currentFrame = (anim.currentFrame + 1) % (anim.lastFrame + 1);
+                } else {
+                    if (anim.currentFrame < anim.lastFrame) {
+                        anim.currentFrame++;
                     } else {
-                        anim.currentFrame = anim.lastFrame;
-                        hasFinishedAttack = true;
+                        // Animation finished
+                        if (state == ATTACK1_WIZARD || state == ATTACK2_WIZARD) {
+                            hasFinishedAttack = true;
+                            state = IDLE_WIZARD;
+                        }
                     }
                 }
             }
         }
-
+        
         Rectangle getAnimationFrame() const {
             const AnimationWizard& anim = animations[state];
             int frameWidth = sprites[state].width / (anim.lastFrame + 1);
@@ -113,39 +125,30 @@ class Wizard {
     
             return { (float)frameWidth * anim.currentFrame, 0, (float)frameWidth, (float)frameHeight };
         }
-
-        void draw() const {
+        
+        void draw() override {
             Rectangle source = getAnimationFrame();
-            float scale = 5.0f;
-    
-            Rectangle dest = { rect.x, rect.y, rect.width * scale, rect.height * scale };
-    
+            
             if (direction == LEFT_WIZARD) {
-                source.x += source.width; // Fix: Proper mirroring
-                source.width = -source.width;
+                source.width = -source.width; // Flip horizontally
             }
-    
-            DrawTexturePro(sprites[state], source, dest, { 0, 0 }, 0.0f, WHITE);
+            
+            Rectangle dest = {
+                rect.x,
+                rect.y,
+                source.width * 2.0f,
+                source.height * 2.0f
+            };
+            
+            DrawTexturePro(sprites[state], source, dest, Vector2{0, 0}, 0.0f, WHITE);
+            
+            // Draw collision box if enabled
+            if (showCollisionBoxes) {
+                DrawRectangleLinesEx(rect, 1, GREEN);
+            }
         }
 
-        // Draw the health bar above the Wizard
-        void drawHealthBar() const {
-            float healthPercentage = (float)currentHealth / maxHealth;
-            float barWidth = 100.0f;
-            float barHeight = 10.0f;
-            float barX = rect.x;
-            float barY = rect.y - 20.0f;  // Position above the Wizard
-
-            // Draw background
-            DrawRectangle(barX, barY, barWidth, barHeight, DARKGRAY);
-            // Draw health bar
-            DrawRectangle(barX, barY, barWidth * healthPercentage, barHeight, GREEN);
-            // Draw health text
-            DrawText(TextFormat("%d/%d", currentHealth, maxHealth), barX, barY - 15.0f, 15, WHITE);
-        }
-
-        // Handle damage
-        void takeDamage(int damage) {
+        void takeDamage(int damage) override {
             if (isDead) return;
             currentHealth -= damage;
             if (currentHealth <= 0) {
@@ -155,7 +158,6 @@ class Wizard {
             }
         }
 
-        // Handle healing
         void heal(int amount) {
             if (isDead) return;
             currentHealth += amount;
@@ -164,7 +166,7 @@ class Wizard {
             }
         }
 
-        void move() {
+        void move() override {
             if (!hasFinishedAttack) return;
         
             float moveSpeed = 300.0f;
@@ -205,7 +207,7 @@ class Wizard {
             }
         }
 
-        void applyVelocity() {
+        void applyVelocity() override {
             float deltaTime = GetFrameTime();
     
             velocity.y += GRAVITY_WIZARD * deltaTime;
@@ -222,4 +224,10 @@ class Wizard {
                 }
             }
         }
+        
+        bool isAlive() override {
+            return !isDead;
+        }
 };
+
+#endif // WIZARD_H

@@ -3,6 +3,7 @@
 
 #include "raylib.h"
 #include <cstdio>   // Added for sprintf
+#include <cmath>
 
 // Character states
 enum CharacterState {
@@ -18,7 +19,10 @@ enum CharacterState {
 };
 
 // Game constants
-#define FLOOR_Y 500  // Define floor Y position as a constant
+#define FLOOR_Y 480.0f  // Define floor Y position as a constant
+
+// Reference to the global collision box toggle
+extern bool showCollisionBoxes;
 
 class Character {
 public:
@@ -100,37 +104,31 @@ public:
         return currentHealth > 0;
     }
     
+    // Standardized health bar drawing method
     virtual void drawHealthBar() {
         if (!isAlive()) return;  // Don't draw health bar if dead
         
-        float healthBarWidth = rect.width * 1.2f;
-        float healthBarHeight = 8;
         float healthPercentage = (float)currentHealth / maxHealth;
+        float barWidth = 100.0f;
+        float barHeight = 10.0f;
+        float barX = rect.x + (rect.width - barWidth) / 2; // Center the bar over the character
+        float barY = rect.y - 20.0f; // Position above the character
         
-        // Background (red)
-        DrawRectangle(
-            rect.x + rect.width/2 - healthBarWidth/2,
-            rect.y - 20,
-            healthBarWidth,
-            healthBarHeight,
-            RED
-        );
+        // Draw background (dark gray)
+        DrawRectangle(barX, barY, barWidth, barHeight, DARKGRAY);
         
-        // Foreground (green)
-        DrawRectangle(
-            rect.x + rect.width/2 - healthBarWidth/2,
-            rect.y - 20,
-            healthBarWidth * healthPercentage,
-            healthBarHeight,
-            GREEN
-        );
+        // Draw health bar (green)
+        DrawRectangle(barX, barY, barWidth * healthPercentage, barHeight, GREEN);
         
-        // Health number
+        // Draw border
+        DrawRectangleLinesEx((Rectangle){barX, barY, barWidth, barHeight}, 1, BLACK);
+        
+        // Draw health text
         char healthText[32];
-        snprintf(healthText, sizeof(healthText), "%d/%d", currentHealth, maxHealth);  // Using snprintf instead of sprintf for safety
+        snprintf(healthText, sizeof(healthText), "%d/%d", currentHealth, maxHealth);
         DrawText(healthText, 
-                rect.x + rect.width/2 - MeasureText(healthText, 16)/2,
-                rect.y - 40, 16, WHITE);
+                barX + (barWidth - MeasureText(healthText, 16)) / 2, // Center text
+                barY - 20, 16, WHITE);
     }
 
     virtual void move() = 0;
@@ -150,6 +148,14 @@ private:
     Texture2D jumpTexture;
     Texture2D runTexture;
     Texture2D shieldTexture;
+    
+    // Sound variables
+    Sound attackSound;
+    Sound jumpSound;
+    Sound hurtSound;
+    Sound runSound;
+    Sound deadSound;
+    Sound landSound;
     
     float jumpVelocity;
     float jumpSpeed;
@@ -186,6 +192,15 @@ public:
         jumpTexture = LoadTexture("assets/Samurai/Jump.png");
         runTexture = LoadTexture("assets/Samurai/Run.png");
         shieldTexture = LoadTexture("assets/Samurai/Shield.png");
+    }
+    
+    void loadSounds() {
+        deadSound = LoadSound("sounds/samurai/female-death.wav");
+        hurtSound = LoadSound("sounds/samurai/female-hurt-2-94301.wav");
+        jumpSound = LoadSound("sounds/samurai/female-jump.wav");
+        attackSound = LoadSound("sounds/samurai/sword-sound-2-36274.wav");
+        runSound = LoadSound("sounds/samurai/running-on-concrete-268478.wav");
+        landSound = LoadSound("sounds/samurai/land2-43790.wav");
     }
     
     void move() override {
@@ -290,18 +305,26 @@ public:
         
         Color tint = isInvulnerable ? ColorAlpha(WHITE, 0.5f) : WHITE;
         
-        // Calculate the destination rectangle - align bottom with floor
+        // Calculate the destination rectangle
+        float scale = 2.0f;
         Rectangle destRec = {
-            rect.x + (direction < 0 ? rect.width : 0),  // Adjust X position when facing left
-            rect.y - (frameRec.height * 2.0f - rect.height),  // Align bottom with character rect
-            frameRec.width * 2.0f * (direction < 0 ? -1.0f : 1.0f),  // Flip width when facing left
-            frameRec.height * 2.0f
+            rect.x,
+            rect.y,
+            frameRec.width * scale,
+            frameRec.height * scale
         };
+        
+        // Handle flipping for left-facing sprites
+        if (direction < 0) {
+            frameRec.width = -frameRec.width; // Flip horizontally
+        }
         
         DrawTexturePro(*currentTexture, frameRec, destRec, Vector2{0, 0}, 0.0f, tint);
         
-        // Debug: Draw collision box
-        DrawRectangleLinesEx(rect, 1, GREEN);
+        // Draw collision box if enabled
+        if (showCollisionBoxes) {
+            DrawRectangleLinesEx(rect, 1, GREEN);
+        }
     }
     
     void updateAnimation() override {
@@ -501,8 +524,10 @@ public:
             // Draw the sprite
             DrawTexturePro(*currentTexture, frameRec, destRec, Vector2{0, 0}, 0.0f, tint);
             
-            // Debug: Draw collision box (uncomment for debugging)
-            // DrawRectangleLinesEx(rect, 1, GREEN);
+            // Draw collision box if enabled
+            if (showCollisionBoxes) {
+                DrawRectangleLinesEx(rect, 1, GREEN);
+            }
         }
     }
     

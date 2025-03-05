@@ -1,9 +1,12 @@
-#include <raylib.h>
+#ifndef WEREWOLF_H
+#define WEREWOLF_H
+
+#include "raylib.h"
+#include "Character.h"
 #include <vector>
 
-const float GRAVITY = 800.0f;
-const float JUMP_FORCE = -400.0f;
-const float GROUND_LEVEL = 400.0f; // Adjust based on your scene
+// Reference to the global collision box toggle
+extern bool showCollisionBoxes;
 
 enum DirectionWolf {
     LEFT_WOLF = -1,
@@ -32,52 +35,49 @@ struct AnimationWolf {
     AnimationTypeWolf type;
 };
 
-class Werewolf {
-public:
-    Rectangle rect;
-    Vector2 velocity;
-    DirectionWolf direction;
-    CurrentStateWolf state;
-    bool isOnGround = true;
+const float GRAVITY = 800.0f;
+const float JUMP_FORCE = -500.0f;
+const float GROUND_LEVEL = 480.0f - 128.0f;  // Adjusted to match floor level
 
-    std::vector<AnimationWolf> animations;
+class Werewolf : public Character {
+private:
     std::vector<Texture2D> sprites;
+    std::vector<AnimationWolf> animations;
+    CurrentStateWolf state;
+    DirectionWolf direction;
+    bool isDead;
+    bool isOnGround;
+    bool hasFinishedAttack;
 
-    bool isAttacking = false;
-    bool hasFinishedAttack = true;
-
-    // Health properties
-    int maxHealth = 100;
-    int currentHealth = 100;
-    bool isDead = false;
-
-    Werewolf(Vector2 position) {
-        rect = {position.x, position.y, 64.0f, 64.0f};  
-        velocity = {0.0f, 0.0f}; 
-        direction = RIGHT_WOLF; 
-        state = IDLE_WOLF; 
-
-        animations = {
-            {0, 1, 0, 0, 0.1f, 0.1f, ONESHOT_WOLF},  
-            {0, 3, 0, 0, 0.1f, 0.1f, ONESHOT_WOLF},  
-            {0, 6, 0, 0, 0.1f, 0.1f, ONESHOT_WOLF},  
-            {0, 1, 0, 0, 0.1f, 0.1f, ONESHOT_WOLF},  
-            {0, 7, 0, 0, 0.1f, 0.1f, REPEATING_WOLF},
-            {0, 10, 0, 0, 0.1f, 0.1f, ONESHOT_WOLF}, 
-            {0, 8, 0, 0, 0.1f, 0.1f, REPEATING_WOLF},
-            {0, 10, 0, 0, 0.1f, 0.1f, REPEATING_WOLF} 
-        };
+public:
+    Werewolf(Vector2 position) : Character(position) {
+        rect.width = 64;
+        rect.height = 128;
+        velocity = {0, 0};
+        direction = RIGHT_WOLF;
+        state = IDLE_WOLF;
+        currentHealth = 150;
+        maxHealth = 150;
+        attackDamage = 20;
+        isDead = false;
+        isOnGround = true;
+        hasFinishedAttack = true;
+        
+        // Initialize animations
+        sprites.resize(8);
+        animations.resize(8);
+        
+        // Place on floor
+        placeOnFloor();
     }
-
+    
     ~Werewolf() {
         for (auto& sprite : sprites) {
             UnloadTexture(sprite);
         }
     }
-
-    void loadTextures() {
-        sprites.resize(8);
-
+    
+    void loadTextures() override {
         sprites[DEAD_WOLF] = LoadTexture("assets/Werewolf/Dead.png");
         sprites[ATTACK_SWIPE] = LoadTexture("assets/Werewolf/Attack_2.png");
         sprites[ATTACK_RUN] = LoadTexture("assets/Werewolf/Run+Attack.png");
@@ -86,28 +86,41 @@ public:
         sprites[JUMP_WOLF] = LoadTexture("assets/Werewolf/Jump.png");
         sprites[RUN_WOLF] = LoadTexture("assets/Werewolf/Run.png");
         sprites[WALK_WOLF] = LoadTexture("assets/Werewolf/Walk.png");
+        
+        // Setup animations
+        animations[IDLE_WOLF] = {0, 7, 0, 0, 0.1f, 0.1f, REPEATING_WOLF};
+        animations[WALK_WOLF] = {0, 10, 0, 0, 0.1f, 0.1f, REPEATING_WOLF};
+        animations[JUMP_WOLF] = {0, 10, 0, 0, 0.1f, 0.1f, ONESHOT_WOLF};
+        animations[RUN_WOLF] = {0, 8, 0, 0, 0.1f, 0.1f, REPEATING_WOLF};
+        animations[ATTACK_SWIPE] = {0, 3, 0, 0, 0.1f, 0.1f, ONESHOT_WOLF};
+        animations[ATTACK_RUN] = {0, 6, 0, 0, 0.1f, 0.1f, ONESHOT_WOLF};
+        animations[HURT_WOLF] = {0, 1, 0, 0, 0.2f, 0.2f, ONESHOT_WOLF};
+        animations[DEAD_WOLF] = {0, 1, 0, 0, 0.2f, 0.2f, ONESHOT_WOLF};
     }
-
-    void updateAnimation() {
+    
+    void updateAnimation() override {
         AnimationWolf& anim = animations[state];
-        float deltaTime = GetFrameTime();
-        anim.timeLeft -= deltaTime;
-
+        anim.timeLeft -= GetFrameTime();
+        
         if (anim.timeLeft <= 0) {
             anim.timeLeft = anim.speed;
-            anim.currentFrame++;
-
-            if (anim.currentFrame > anim.lastFrame) {
-                if (anim.type == REPEATING_WOLF) {
-                    anim.currentFrame = anim.firstFrame;
+            
+            if (anim.type == REPEATING_WOLF) {
+                anim.currentFrame = (anim.currentFrame + 1) % (anim.lastFrame + 1);
+            } else {
+                if (anim.currentFrame < anim.lastFrame) {
+                    anim.currentFrame++;
                 } else {
-                    anim.currentFrame = anim.lastFrame;
-                    hasFinishedAttack = true;
+                    // Animation finished
+                    if (state == ATTACK_SWIPE || state == ATTACK_RUN) {
+                        hasFinishedAttack = true;
+                        state = IDLE_WOLF;
+                    }
                 }
             }
         }
     }
-
+    
     Rectangle getAnimationFrame() const {
         const AnimationWolf& anim = animations[state];
         int frameWidth = sprites[state].width / (anim.lastFrame + 1);
@@ -115,38 +128,30 @@ public:
 
         return { (float)frameWidth * anim.currentFrame, 0, (float)frameWidth, (float)frameHeight };
     }
-
-    void draw() const {
+    
+    void draw() override {
         Rectangle source = getAnimationFrame();
-        float scale = 2.0f;
-
-        Rectangle dest = { rect.x, rect.y, rect.width * scale, rect.height * scale };
-
+        
         if (direction == LEFT_WOLF) {
-            source.width = -source.width;
+            source.width = -source.width; // Flip horizontally
         }
-
-        DrawTexturePro(sprites[state], source, dest, { 0, 0 }, 0.0f, WHITE);
+        
+        Rectangle dest = {
+            rect.x,
+            rect.y,
+            source.width * 2.0f,
+            source.height * 2.0f
+        };
+        
+        DrawTexturePro(sprites[state], source, dest, Vector2{0, 0}, 0.0f, WHITE);
+        
+        // Draw collision box if enabled
+        if (showCollisionBoxes) {
+            DrawRectangleLinesEx(rect, 1, GREEN);
+        }
     }
 
-    // Draw the health bar above the Werewolf
-    void drawHealthBar() const {
-        float healthPercentage = (float)currentHealth / maxHealth;
-        float barWidth = 100.0f;
-        float barHeight = 10.0f;
-        float barX = rect.x;
-        float barY = rect.y - 20.0f;  // Position above the Werewolf
-
-        // Draw background
-        DrawRectangle(barX, barY, barWidth, barHeight, DARKGRAY);
-        // Draw health bar
-        DrawRectangle(barX, barY, barWidth * healthPercentage, barHeight, GREEN);
-        // Draw health text
-        DrawText(TextFormat("%d/%d", currentHealth, maxHealth), barX, barY - 15.0f, 15, WHITE);
-    }
-
-    // Handle damage
-    void takeDamage(int damage) {
+    void takeDamage(int damage) override {
         if (isDead) return;
         currentHealth -= damage;
         if (currentHealth <= 0) {
@@ -156,7 +161,6 @@ public:
         }
     }
 
-    // Handle healing
     void heal(int amount) {
         if (isDead) return;
         currentHealth += amount;
@@ -165,7 +169,7 @@ public:
         }
     }
 
-    void move() {
+    void move() override {
         if (!hasFinishedAttack) return;
     
         float moveSpeed = 300.0f;
@@ -208,7 +212,7 @@ public:
         }
     }
     
-    void applyVelocity() {
+    void applyVelocity() override {
         float deltaTime = GetFrameTime();
 
         velocity.y += GRAVITY * deltaTime;
@@ -225,4 +229,10 @@ public:
             }
         }
     }
+    
+    bool isAlive() override {
+        return !isDead;
+    }
 };
+
+#endif // WEREWOLF_H

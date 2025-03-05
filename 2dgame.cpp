@@ -1,5 +1,8 @@
 #include "raylib.h"
 #include "Character.h"
+#include "Werewolf.h"
+#include "Wizard.h"
+#include "Demon.h"
 #include <iostream>
 
 // Game states
@@ -8,6 +11,9 @@ enum GameState {
     PLAYING,
     GAME_OVER
 };
+
+// Global variables
+bool showCollisionBoxes = false; // Toggle for collision visualization
 
 int main() {
     // Initialize window
@@ -35,19 +41,20 @@ int main() {
     samurai.loadTextures();
     samurai.loadSounds();
 
-    Goblin goblin((Vector2) {500, floorY - 100});
+    Goblin goblin((Vector2) {500, floorY - 64});
     goblin.loadTextures();
 
     // Creating Werewolf
-    Werewolf werewolf((Vector2) {400, 300});
+    Werewolf werewolf((Vector2) {600, floorY - 128});
     werewolf.loadTextures();
 
     // Creating Wizard
-    Wizard wizard((Vector2) {400, 300});
+    Wizard wizard((Vector2) {200, floorY - 128});
     wizard.loadTextures();
 
     // Creating Demon
-    Demon demon((Vector2) {400, 300});
+    Demon demon((Vector2) {400, floorY - 128});
+    demon.loadAnimations();
 
     GameState gameState = TITLE;
     float gameOverTimer = 0;
@@ -69,6 +76,11 @@ int main() {
                 break;
                 
             case PLAYING:
+                // Toggle collision box visualization with F1 key
+                if (IsKeyPressed(KEY_F1)) {
+                    showCollisionBoxes = !showCollisionBoxes;
+                }
+                
                 // Update character states and movement
                 if (samurai.isAlive() && goblin.isAlive()) {
                     samurai.move();
@@ -150,7 +162,7 @@ int main() {
                 if (gameOverTimer <= 0 && IsKeyPressed(KEY_R)) {
                     // Reset game
                     samurai = Samurai((Vector2){300, floorY - 128});
-                    goblin = Goblin((Vector2){500, floorY - 100});
+                    goblin = Goblin((Vector2){500, floorY - 64});
                     samurai.loadTextures();
                     goblin.loadTextures();
                     gameState = PLAYING;
@@ -186,6 +198,7 @@ int main() {
                 DrawText("A/D - Move Left/Right", 300, 310, 20, WHITE);
                 DrawText("W - Jump", 300, 340, 20, WHITE);
                 DrawText("SPACE - Attack", 300, 370, 20, WHITE);
+                DrawText("F1 - Toggle Collision Boxes", 300, 400, 20, WHITE);
                 DrawText("Press ENTER to start", 270, 430, 30, YELLOW);
                 break;
                 
@@ -226,6 +239,12 @@ int main() {
                     if (gameOverTimer <= 0) {
                         DrawText("Press R to restart", 280, 300, 25, YELLOW);
                     }
+                }
+                
+                // Display collision box toggle status
+                if (gameState == PLAYING) {
+                    DrawText(TextFormat("Collision Boxes: %s (F1)", showCollisionBoxes ? "ON" : "OFF"), 
+                             10, 10, 20, WHITE);
                 }
                 break;
         }
