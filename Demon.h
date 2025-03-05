@@ -129,57 +129,46 @@ class Demon {
         }
 
         void updateAnimation() {
-            // Check if the demon is dead or hurt, and prioritize these states
+            AnimationDemon& anim = animations[state];
+            float deltaTime = GetFrameTime();
+            anim.timeLeft -= deltaTime;
+        
+            // If the demon is dead, make sure the dead animation plays through fully
             if (isDead) {
-                state = DEAD_DEMON;  // Ensure dead animation is always active
-            } else if (state == HURT_DEMON) {
-                // Handle hurt animation
-                AnimationDemon& anim = animations[state];
-                float deltaTime = GetFrameTime();
-                anim.timeLeft -= deltaTime;
-                
+                state = DEAD_DEMON;  // Ensure dead animation is active
                 if (anim.timeLeft <= 0) {
                     anim.timeLeft = anim.speed;
                     anim.currentFrame++;
-            
+                    if (anim.currentFrame > anim.lastFrame) {
+                        anim.currentFrame = anim.lastFrame;  // Stay on the last frame
+                        return;  // Exit, demon is dead, no more animation updates needed
+                    }
+                }
+            }
+            // Handle hurt animation
+            else if (state == HURT_DEMON) {
+                if (anim.timeLeft <= 0) {
+                    anim.timeLeft = anim.speed;
+                    anim.currentFrame++;
                     if (anim.currentFrame > anim.lastFrame) {
                         anim.currentFrame = anim.firstFrame;  // Restart or loop
                         state = IDLE_DEMON;  // After hurt, go back to idle
                     }
                 }
-            } else if (state == DEAD_DEMON) {
-                // Handle dead animation
-                AnimationDemon& anim = animations[state];
-                float deltaTime = GetFrameTime();
-                anim.timeLeft -= deltaTime;
-                
+            }
+            // Handle other animations (walking, attacking, etc.)
+            else {
                 if (anim.timeLeft <= 0) {
                     anim.timeLeft = anim.speed;
                     anim.currentFrame++;
-            
-                    // Play the death animation fully
-                    if (anim.currentFrame > anim.lastFrame) {
-                        anim.currentFrame = anim.lastFrame;  // Stay on the last frame
-                        // Dead animation is complete, stay on the last frame
-                        return;  // Do nothing after the dead animation completes
-                    }
-                }
-            } else {
-                // Handle other animations (walking, attacking, etc.)
-                AnimationDemon& anim = animations[state];
-                float deltaTime = GetFrameTime();
-                anim.timeLeft -= deltaTime;
-                
-                if (anim.timeLeft <= 0) {
-                    anim.timeLeft = anim.speed;
-                    anim.currentFrame++;
-                
                     if (anim.currentFrame > anim.lastFrame) {
                         if (anim.type == REPEATING_DEMON) {
-                            anim.currentFrame = anim.firstFrame; // Loop back to first frame
+                            anim.currentFrame = anim.firstFrame;  // Loop back to first frame
                         } else {
-                            anim.currentFrame = anim.lastFrame; // Hold on the last frame
-                            hasFinishedAttack = true; // Animation is complete
+                            anim.currentFrame = anim.lastFrame;  // Hold on the last frame
+                            if (state == ATTACK_DEMON) {
+                                hasFinishedAttack = true; // Animation is complete
+                            }
                         }
                     }
                 }
@@ -266,8 +255,9 @@ class Demon {
                 isDead = true;
                 state = DEAD_DEMON;
                 
-                // Reset the death animation to start from the first frame
+                // Start the death animation from the first frame
                 animations[DEAD_DEMON].currentFrame = animations[DEAD_DEMON].firstFrame;
+                animations[DEAD_DEMON].timeLeft = animations[DEAD_DEMON].speed;
             } else {
                 state = HURT_DEMON;  // Trigger hurt animation
             }
