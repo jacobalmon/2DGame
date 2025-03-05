@@ -14,6 +14,11 @@ namespace fs = std::filesystem;
 // Reference to the global collision box toggle
 extern bool showCollisionBoxes;
 
+// Constants for Demon
+const float GRAVITY_DEMON = 800.0f;
+const float JUMP_FORCE_DEMON = -500.0f;
+const float GROUND_LEVEL_DEMON = 480.0f - 128.0f;  // Adjusted to match floor level
+
 enum DirectionDemon {
     LEFT_DEMON = -1,
     RIGHT_DEMON = 1
@@ -41,10 +46,12 @@ struct AnimationDemon {
 
 class Demon : public Character {
     private:
+        std::vector<Texture2D> sprites;
         std::vector<AnimationDemon> animations;
         CurrentStateDemon state;
         DirectionDemon direction;
         bool isDead;
+        bool isOnGround;
         bool hasFinishedAttack;
 
     public:
@@ -56,11 +63,13 @@ class Demon : public Character {
             state = IDLE_DEMON;
             currentHealth = 200;
             maxHealth = 200;
-            attackDamage = 40;
+            attackDamage = 30;
             isDead = false;
+            isOnGround = true;
             hasFinishedAttack = true;
             
             // Initialize animations
+            sprites.resize(5);
             animations.resize(5);
             
             // Place on floor
@@ -183,30 +192,30 @@ class Demon : public Character {
         }
 
         void draw() override {
+            if (state == DEAD_DEMON && isDead) return;
+            
             if (state >= animations.size()) return;
             
             const AnimationDemon& anim = animations[state];
             if (anim.currentFrame >= anim.frames.size()) return;
             
-            Rectangle source = getAnimationFrame();
+            Rectangle frameRec = getAnimationFrame();
             
-            if (direction == LEFT_DEMON) {
-                source.width = -source.width; // Flip horizontally
-            }
-            
-            Rectangle dest = {
-                rect.x,
+            // Calculate destination rectangle
+            Rectangle destRec = {
+                rect.x + (direction == LEFT_DEMON ? rect.width : 0),
                 rect.y,
-                source.width * 2.0f,
-                source.height * 2.0f
+                frameRec.width * (direction == LEFT_DEMON ? -2.0f : 2.0f),
+                frameRec.height * 2.0f
             };
             
-            DrawTexturePro(anim.frames[anim.currentFrame], source, dest, Vector2{0, 0}, 0.0f, WHITE);
+            Color tint = isInvulnerable ? ColorAlpha(WHITE, 0.5f) : WHITE;
             
-            // Draw collision box if enabled
-            if (showCollisionBoxes) {
-                DrawRectangleLinesEx(rect, 1, GREEN);
-            }
+            // Draw the sprite
+            DrawTexturePro(anim.frames[anim.currentFrame], frameRec, destRec, Vector2{0, 0}, 0.0f, tint);
+            
+            // Draw debug boxes
+            drawDebugBoxes();
         }
 
         void takeDamage(int damage) override {
@@ -255,13 +264,85 @@ class Demon : public Character {
         }
 
         void applyVelocity() override {
-            float deltaTime = GetFrameTime();
-            rect.x += velocity.x * deltaTime;
-            rect.y += velocity.y * deltaTime;
+            if (isDead) return;
+            
+            rect.x += velocity.x * GetFrameTime();
+            rect.y += velocity.y * GetFrameTime();
+            
+            // Apply gravity
+            if (!isOnGround) {
+                velocity.y += GRAVITY_DEMON * GetFrameTime();
+            }
+            
+            // Check floor collision
+            if (rect.y + rect.height > GROUND_LEVEL_DEMON + rect.height) {
+                rect.y = GROUND_LEVEL_DEMON;
+                velocity.y = 0;
+                isOnGround = true;
+            }
+            
+            // Update collision boxes when position changes
+            updateCollisionBoxes();
         }
         
         bool isAlive() override {
             return !isDead;
+        }
+        
+        void updateCollisionBoxes() override {
+            // Check if state is valid and animations are loaded
+            if (state >= animations.size() || animations[state].frames.empty()) {
+                return;
+            }
+            
+            const AnimationDemon& anim = animations[state];
+            if (anim.currentFrame >= anim.frames.size()) {
+                return;
+            }
+            
+            // Get the current frame dimensions
+            float frameWidth = (float)anim.frames[anim.currentFrame].width;
+            float frameHeight = (float)anim.frames[anim.currentFrame].height;
+            
+            // Calculate the actual position of the sprite
+            float spriteX = rect.x + (direction == LEFT_DEMON ? rect.width : 0);
+            float spriteY = rect.y;
+            float spriteWidth = frameWidth * 2.0f; // Scale is 2.0
+            float spriteHeight = frameHeight * 2.0f;
+            
+            // Update collision box to match the sprite's actual body
+            // Make the collision box about 35% of the sprite width and 70% of the sprite height
+            // Position it to be centered horizontally and aligned with the bottom of the sprite
+            collisionBox.width = spriteWidth * 0.35f;
+            collisionBox.height = spriteHeight * 0.7f;
+            
+            // Adjust position based on direction
+            if (direction == RIGHT_DEMON) {
+                collisionBox.x = spriteX + (spriteWidth - collisionBox.width) / 2;
+            } else {
+                collisionBox.x = spriteX - spriteWidth + (spriteWidth - collisionBox.width) / 2;
+            }
+            
+            collisionBox.y = spriteY + spriteHeight - collisionBox.height;
+            
+            // Update hit box based on state and direction
+            if (state == ATTACK_DEMON) {
+                // Attack hit box extends in front of the demon
+                if (direction == RIGHT_DEMON) {
+                    hitBox.width = spriteWidth * 0.6f;
+                    hitBox.height = spriteHeight * 0.5f;
+                    hitBox.x = spriteX + spriteWidth * 0.4f;
+                    hitBox.y = spriteY + spriteHeight * 0.3f;
+                } else {
+                    hitBox.width = spriteWidth * 0.6f;
+                    hitBox.height = spriteHeight * 0.5f;
+                    hitBox.x = spriteX - spriteWidth - hitBox.width * 0.5f;
+                    hitBox.y = spriteY + spriteHeight * 0.3f;
+                }
+            } else {
+                // No hit box for other states
+                hitBox = { 0, 0, 0, 0 };
+            }
         }
         
         void loadTextures() override {

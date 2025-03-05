@@ -127,25 +127,25 @@ class Wizard : public Character {
         }
         
         void draw() override {
-            Rectangle source = getAnimationFrame();
+            if (state == DEAD_WIZARD && isDead) return;
             
-            if (direction == LEFT_WIZARD) {
-                source.width = -source.width; // Flip horizontally
-            }
+            Rectangle frameRec = getAnimationFrame();
             
-            Rectangle dest = {
-                rect.x,
+            // Calculate destination rectangle
+            Rectangle destRec = {
+                rect.x + (direction == LEFT_WIZARD ? rect.width : 0),
                 rect.y,
-                source.width * 2.0f,
-                source.height * 2.0f
+                frameRec.width * (direction == LEFT_WIZARD ? -2.0f : 2.0f),
+                frameRec.height * 2.0f
             };
             
-            DrawTexturePro(sprites[state], source, dest, Vector2{0, 0}, 0.0f, WHITE);
+            Color tint = isInvulnerable ? ColorAlpha(WHITE, 0.5f) : WHITE;
             
-            // Draw collision box if enabled
-            if (showCollisionBoxes) {
-                DrawRectangleLinesEx(rect, 1, GREEN);
-            }
+            // Draw the sprite
+            DrawTexturePro(sprites[state], frameRec, destRec, Vector2{0, 0}, 0.0f, tint);
+            
+            // Draw debug boxes
+            drawDebugBoxes();
         }
 
         void takeDamage(int damage) override {
@@ -208,25 +208,96 @@ class Wizard : public Character {
         }
 
         void applyVelocity() override {
-            float deltaTime = GetFrameTime();
-    
-            velocity.y += GRAVITY_WIZARD * deltaTime;
-    
-            rect.x += velocity.x * deltaTime;
-            rect.y += velocity.y * deltaTime;
-    
-            if (rect.y >= GROUND_LEVEL_WIZARD) {
+            if (isDead) return;
+            
+            rect.x += velocity.x * GetFrameTime();
+            rect.y += velocity.y * GetFrameTime();
+            
+            // Apply gravity
+            if (!isOnGround) {
+                velocity.y += GRAVITY_WIZARD * GetFrameTime();
+            }
+            
+            // Check floor collision
+            if (rect.y + rect.height > GROUND_LEVEL_WIZARD + rect.height) {
                 rect.y = GROUND_LEVEL_WIZARD;
                 velocity.y = 0;
                 isOnGround = true;
-                if (state == JUMP_WIZARD) {
-                    state = IDLE_WIZARD;
-                }
             }
+            
+            // Update collision boxes when position changes
+            updateCollisionBoxes();
         }
         
         bool isAlive() override {
             return !isDead;
+        }
+        
+        void updateCollisionBoxes() override {
+            // Get the current texture dimensions and frames based on state
+            if (state < 0 || state >= sprites.size() || sprites[state].id == 0) {
+                return; // Invalid state or texture not loaded
+            }
+            
+            const AnimationWizard& anim = animations[state];
+            int frameWidth = sprites[state].width / (anim.lastFrame + 1);
+            int frameHeight = sprites[state].height;
+            
+            // Calculate the actual position of the sprite
+            float spriteX = rect.x + (direction == LEFT_WIZARD ? rect.width : 0);
+            float spriteY = rect.y;
+            float spriteWidth = frameWidth * 2.0f; // Scale is 2.0
+            float spriteHeight = frameHeight * 2.0f;
+            
+            // Update collision box to match the sprite's actual body
+            // Make the collision box about 30% of the sprite width and 70% of the sprite height
+            // Position it to be centered horizontally and aligned with the bottom of the sprite
+            collisionBox.width = spriteWidth * 0.3f;
+            collisionBox.height = spriteHeight * 0.7f;
+            
+            // Adjust position based on direction
+            if (direction == RIGHT_WIZARD) {
+                collisionBox.x = spriteX + (spriteWidth - collisionBox.width) / 2;
+            } else {
+                collisionBox.x = spriteX - spriteWidth + (spriteWidth - collisionBox.width) / 2;
+            }
+            
+            collisionBox.y = spriteY + spriteHeight - collisionBox.height;
+            
+            // Update hit box based on state and direction
+            if (state == ATTACK1_WIZARD || state == ATTACK2_WIZARD) {
+                // Different hit boxes for different attack types
+                if (state == ATTACK1_WIZARD) {
+                    // Attack1 extends further in front
+                    if (direction == RIGHT_WIZARD) {
+                        hitBox.width = spriteWidth * 0.7f;
+                        hitBox.height = spriteHeight * 0.4f;
+                        hitBox.x = spriteX + spriteWidth * 0.3f;
+                        hitBox.y = spriteY + spriteHeight * 0.3f;
+                    } else {
+                        hitBox.width = spriteWidth * 0.7f;
+                        hitBox.height = spriteHeight * 0.4f;
+                        hitBox.x = spriteX - spriteWidth - hitBox.width * 0.5f;
+                        hitBox.y = spriteY + spriteHeight * 0.3f;
+                    }
+                } else if (state == ATTACK2_WIZARD) {
+                    // Attack2 is a wider area effect
+                    if (direction == RIGHT_WIZARD) {
+                        hitBox.width = spriteWidth * 0.9f;
+                        hitBox.height = spriteHeight * 0.5f;
+                        hitBox.x = spriteX + spriteWidth * 0.2f;
+                        hitBox.y = spriteY + spriteHeight * 0.25f;
+                    } else {
+                        hitBox.width = spriteWidth * 0.9f;
+                        hitBox.height = spriteHeight * 0.5f;
+                        hitBox.x = spriteX - spriteWidth - hitBox.width * 0.1f;
+                        hitBox.y = spriteY + spriteHeight * 0.25f;
+                    }
+                }
+            } else {
+                // No hit box for other states
+                hitBox = { 0, 0, 0, 0 };
+            }
         }
 };
 

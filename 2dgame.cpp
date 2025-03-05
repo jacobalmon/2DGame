@@ -15,9 +15,14 @@ enum GameState {
 // Global variables
 bool showCollisionBoxes = false; // Toggle for collision visualization
 
+// Function to check character collision
+bool checkCharacterCollision(Rectangle rect1, Rectangle rect2) {
+    return CheckCollisionRecs(rect1, rect2);
+}
+
 int main() {
     // Initialize window
-    InitWindow(800, 600, "Samurai vs Goblin");
+    InitWindow(800, 600, "2D Game");
     
     // Initialize audio device before loading music
     InitAudioDevice(); 
@@ -105,7 +110,7 @@ int main() {
                     goblin.updateCombatState(deltaTime);
 
                     // Handle collisions and combat
-                    if(checkCharacterCollision(samurai.rect, goblin.rect)) {
+                    if(checkCharacterCollision(samurai.getCollisionBox(), goblin.getCollisionBox())) {
                         // Handle attack-based collisions first
                         if (samurai.state == ATTACK && !goblin.isInvulnerable) {
                             goblin.takeDamage(samurai.attackDamage);
@@ -121,11 +126,13 @@ int main() {
                             samurai.velocity.x = goblin.direction * 200.0f; // Knockback
                         }
                         else { // Normal collision resolution
-                            float overlapX = (samurai.rect.width + goblin.rect.width) / 2.0f - 
-                                fabsf((samurai.rect.x + samurai.rect.width/2.0f) - (goblin.rect.x + goblin.rect.width/2.0f));
+                            float overlapX = (samurai.getCollisionBox().width + goblin.getCollisionBox().width) / 2.0f - 
+                                fabsf((samurai.getCollisionBox().x + samurai.getCollisionBox().width/2.0f) - 
+                                      (goblin.getCollisionBox().x + goblin.getCollisionBox().width/2.0f));
                             
-                            float overlapY = (samurai.rect.height + goblin.rect.height) / 2.0f - 
-                                fabsf((samurai.rect.y + samurai.rect.height/2.0f) - (goblin.rect.y + goblin.rect.height/2.0f));
+                            float overlapY = (samurai.getCollisionBox().height + goblin.getCollisionBox().height) / 2.0f - 
+                                fabsf((samurai.getCollisionBox().y + samurai.getCollisionBox().height/2.0f) - 
+                                      (goblin.getCollisionBox().y + goblin.getCollisionBox().height/2.0f));
 
                             bool horizontalCollision = overlapX < overlapY;
                             
@@ -146,7 +153,27 @@ int main() {
                                     goblin.rect.y -= overlapY / 2.0f;
                                 }
                             }
+                            
+                            // Update collision boxes after position changes
+                            samurai.updateCollisionBoxes();
+                            goblin.updateCollisionBoxes();
                         }
+                    }
+                    
+                    // Check for hit box collisions (attacks)
+                    if (samurai.state == ATTACK && !goblin.isInvulnerable && 
+                        samurai.getHitBox().width > 0 && 
+                        checkCharacterCollision(samurai.getHitBox(), goblin.getCollisionBox())) {
+                        goblin.takeDamage(samurai.attackDamage);
+                        goblin.velocity.x = samurai.direction * 200.0f; // Knockback
+                    }
+                    
+                    if ((goblin.state == ATTACK_CLUB || goblin.state == ATTACK_STOMP || goblin.state == ATTACK_AOE) && 
+                        !samurai.isInvulnerable && 
+                        goblin.getHitBox().width > 0 && 
+                        checkCharacterCollision(goblin.getHitBox(), samurai.getCollisionBox())) {
+                        samurai.takeDamage(goblin.attackDamage);
+                        samurai.velocity.x = goblin.direction * 200.0f; // Knockback
                     }
                 }
 

@@ -27,6 +27,8 @@ extern bool showCollisionBoxes;
 class Character {
 public:
     Rectangle rect;
+    Rectangle collisionBox;  // Added collision box
+    Rectangle hitBox;        // Added hit box
     Vector2 velocity;
     float direction;
     CharacterState state;
@@ -45,6 +47,11 @@ public:
     
     Character(Vector2 position) {
         rect = { position.x, position.y, 64, 64 };
+        // Initialize collision box to be smaller than the character rect
+        collisionBox = { position.x + rect.width * 0.25f, position.y + rect.height * 0.25f, 
+                         rect.width * 0.5f, rect.height * 0.75f };
+        // Initialize hit box (will be updated based on state)
+        hitBox = { 0, 0, 0, 0 };
         velocity = { 0, 0 };
         direction = 1.0f;
         state = IDLE;
@@ -64,6 +71,40 @@ public:
     // Place character on the floor
     void placeOnFloor() {
         rect.y = FLOOR_Y - rect.height;
+        updateCollisionBoxes();  // Update collision boxes when position changes
+    }
+    
+    // Update collision and hit boxes based on character position and state
+    virtual void updateCollisionBoxes() {
+        // Default implementation - derived classes should override this
+        // Update collision box position based on character rect
+        collisionBox.x = rect.x + rect.width * 0.25f;
+        collisionBox.y = rect.y + rect.height * 0.25f;
+        
+        // Update hit box based on state and direction
+        if (state == ATTACK || state == ATTACK_CLUB || state == ATTACK_STOMP || state == ATTACK_AOE) {
+            // Extend hit box in the direction the character is facing
+            if (direction > 0) {
+                hitBox = { rect.x + rect.width * 0.5f, rect.y + rect.height * 0.25f, 
+                           rect.width * 0.75f, rect.height * 0.5f };
+            } else {
+                hitBox = { rect.x - rect.width * 0.25f, rect.y + rect.height * 0.25f, 
+                           rect.width * 0.75f, rect.height * 0.5f };
+            }
+        } else {
+            // No hit box for other states
+            hitBox = { 0, 0, 0, 0 };
+        }
+    }
+    
+    // Get collision box for collision detection
+    Rectangle getCollisionBox() const {
+        return collisionBox;
+    }
+    
+    // Get hit box for attack detection
+    Rectangle getHitBox() const {
+        return hitBox;
     }
     
     virtual void takeDamage(int damage) {
@@ -98,6 +139,9 @@ public:
                 }
             }
         }
+        
+        // Update collision boxes when state changes
+        updateCollisionBoxes();
     }
     
     virtual bool isAlive() {
@@ -129,6 +173,22 @@ public:
         DrawText(healthText, 
                 barX + (barWidth - MeasureText(healthText, 16)) / 2, // Center text
                 barY - 20, 16, WHITE);
+    }
+
+    // Draw debug boxes to visualize collision and hit boxes
+    virtual void drawDebugBoxes() {
+        if (showCollisionBoxes) {
+            // Draw collision box (green)
+            DrawRectangleLinesEx(collisionBox, 1, GREEN);
+            
+            // Draw hit box (red) if active
+            if (hitBox.width > 0 && hitBox.height > 0) {
+                DrawRectangleLinesEx(hitBox, 1, RED);
+            }
+            
+            // Draw character rect (blue)
+            DrawRectangleLinesEx(rect, 1, BLUE);
+        }
     }
 
     virtual void move() = 0;
@@ -269,6 +329,9 @@ public:
                 state = velocity.x != 0 ? WALK : IDLE;
             }
         }
+        
+        // Update collision boxes when position changes
+        updateCollisionBoxes();
     }
     
     void draw() override {
@@ -321,10 +384,8 @@ public:
         
         DrawTexturePro(*currentTexture, frameRec, destRec, Vector2{0, 0}, 0.0f, tint);
         
-        // Draw collision box if enabled
-        if (showCollisionBoxes) {
-            DrawRectangleLinesEx(rect, 1, GREEN);
-        }
+        // Draw debug boxes
+        drawDebugBoxes();
     }
     
     void updateAnimation() override {
@@ -335,6 +396,68 @@ public:
             currentFrame++;
             if (currentFrame > 5) currentFrame = 0;
             animationTimer = 0.0f;
+        }
+    }
+
+    void updateCollisionBoxes() override {
+        // Get the current texture dimensions
+        Texture2D* currentTexture = &idleTexture;
+        
+        switch(state) {
+            case IDLE: currentTexture = &idleTexture; break;
+            case WALK: currentTexture = &walkTexture; break;
+            case JUMP: currentTexture = &jumpTexture; break;
+            case ATTACK: currentTexture = &attackTextures[0]; break;
+            case HURT: currentTexture = &hurtTexture; break;
+            case DEAD: currentTexture = &deadTexture; break;
+            default: currentTexture = &idleTexture;
+        }
+        
+        // Calculate frame dimensions
+        float frameWidth = (float)currentTexture->width / 6;
+        float frameHeight = (float)currentTexture->height;
+        float scale = 2.0f;
+        
+        // Calculate the actual sprite position and dimensions
+        float spriteWidth = frameWidth * scale;
+        float spriteHeight = frameHeight * scale;
+        
+        // Update collision box to match the sprite's actual body
+        // Make the collision box about 30% of the sprite width and 70% of the sprite height
+        // Position it to be centered horizontally and aligned with the bottom of the sprite
+        collisionBox.width = spriteWidth * 0.3f;
+        collisionBox.height = spriteHeight * 0.7f;
+        
+        // Adjust position based on direction
+        if (direction > 0) {
+            // For right-facing sprites
+            collisionBox.x = rect.x + (spriteWidth - collisionBox.width) / 2;
+        } else {
+            // For left-facing sprites
+            collisionBox.x = rect.x + (spriteWidth - collisionBox.width) / 2;
+        }
+        
+        collisionBox.y = rect.y + spriteHeight - collisionBox.height;
+        
+        // Update hit box based on state and direction
+        if (state == ATTACK) {
+            // For attack, extend the hit box in front of the character
+            if (direction > 0) {
+                // Right-facing attack
+                hitBox.width = spriteWidth * 0.5f;
+                hitBox.height = spriteHeight * 0.4f;
+                hitBox.x = rect.x + spriteWidth * 0.5f;
+                hitBox.y = rect.y + spriteHeight * 0.3f;
+            } else {
+                // Left-facing attack
+                hitBox.width = spriteWidth * 0.5f;
+                hitBox.height = spriteHeight * 0.4f;
+                hitBox.x = rect.x - hitBox.width * 0.5f;
+                hitBox.y = rect.y + spriteHeight * 0.3f;
+            }
+        } else {
+            // No hit box for other states
+            hitBox = { 0, 0, 0, 0 };
         }
     }
 };
@@ -524,10 +647,8 @@ public:
             // Draw the sprite
             DrawTexturePro(*currentTexture, frameRec, destRec, Vector2{0, 0}, 0.0f, tint);
             
-            // Draw collision box if enabled
-            if (showCollisionBoxes) {
-                DrawRectangleLinesEx(rect, 1, GREEN);
-            }
+            // Draw debug boxes
+            drawDebugBoxes();
         }
     }
     
@@ -582,6 +703,9 @@ public:
         
         // Ensure character stays on the floor
         placeOnFloor();
+        
+        // Update collision boxes when position changes
+        updateCollisionBoxes();
     }
     
     void updateAnimation() override {
@@ -645,10 +769,100 @@ public:
         // Update combat state
         updateCombatState(deltaTime);
     }
-};
 
-bool checkCharacterCollision(Rectangle rect1, Rectangle rect2) {
-    return CheckCollisionRecs(rect1, rect2);
-}
+    void updateCollisionBoxes() override {
+        // Get the current texture dimensions and frames
+        Texture2D* currentTexture = &idleTexture;
+        int framesInTexture = 7; // Default for idle texture (7 frames)
+        
+        switch(state) {
+            case WALK: 
+                currentTexture = &walkTexture; 
+                framesInTexture = 8; // Walk has 8 frames
+                break;
+            case ATTACK_CLUB: 
+                currentTexture = &attackTextures[0]; 
+                framesInTexture = 10; // Attack 1 has 10 frames
+                break;
+            case ATTACK_STOMP: 
+                currentTexture = &attackTextures[2]; 
+                framesInTexture = 24; // Attack 3 has 24 frames
+                break;
+            case ATTACK_AOE: 
+                currentTexture = &attackTextures[3]; 
+                framesInTexture = 9; // Attack 4 has 9 frames
+                break;
+            case DEAD: 
+                currentTexture = &dieTexture; 
+                framesInTexture = 9; // Die has 9 frames
+                break;
+            default: 
+                currentTexture = &idleTexture;
+                framesInTexture = 7; // Idle has 7 frames
+        }
+        
+        if (currentTexture->id != 0) {
+            // Calculate frame dimensions
+            float frameWidth = (float)currentTexture->width / framesInTexture;
+            float frameHeight = (float)currentTexture->height;
+            
+            // The Goblin sprite is drawn with special alignment
+            // Calculate the actual position of the sprite
+            float spriteX = rect.x + (direction < 0 ? rect.width : 0);
+            float spriteY = rect.y - (frameHeight * scale - rect.height);
+            float spriteWidth = frameWidth * scale;
+            float spriteHeight = frameHeight * scale;
+            
+            // Update collision box to match the sprite's actual body
+            // Make the collision box about 40% of the sprite width and 60% of the sprite height
+            // Position it to be centered horizontally and aligned with the bottom of the sprite
+            collisionBox.width = spriteWidth * 0.4f;
+            collisionBox.height = spriteHeight * 0.6f;
+            
+            // Adjust position based on direction
+            if (direction > 0) {
+                collisionBox.x = spriteX + (spriteWidth - collisionBox.width) / 2;
+            } else {
+                collisionBox.x = spriteX - spriteWidth + (spriteWidth - collisionBox.width) / 2;
+            }
+            
+            collisionBox.y = spriteY + spriteHeight - collisionBox.height;
+            
+            // Update hit box based on state and direction
+            if (state == ATTACK_CLUB || state == ATTACK_STOMP || state == ATTACK_AOE) {
+                // Different hit boxes for different attack types
+                if (state == ATTACK_CLUB) {
+                    // Club attack extends in front
+                    if (direction > 0) {
+                        hitBox.width = spriteWidth * 0.5f;
+                        hitBox.height = spriteHeight * 0.4f;
+                        hitBox.x = spriteX + spriteWidth * 0.5f;
+                        hitBox.y = spriteY + spriteHeight * 0.3f;
+                    } else {
+                        hitBox.width = spriteWidth * 0.5f;
+                        hitBox.height = spriteHeight * 0.4f;
+                        hitBox.x = spriteX - spriteWidth - hitBox.width * 0.5f;
+                        hitBox.y = spriteY + spriteHeight * 0.3f;
+                    }
+                } else if (state == ATTACK_STOMP) {
+                    // Stomp attack extends downward
+                    hitBox.width = spriteWidth * 0.6f;
+                    hitBox.height = spriteHeight * 0.3f;
+                    hitBox.x = spriteX + (direction > 0 ? 0 : -spriteWidth) + (spriteWidth - hitBox.width) / 2;
+                    hitBox.y = spriteY + spriteHeight * 0.7f;
+                } else if (state == ATTACK_AOE) {
+                    // AOE attack surrounds the goblin
+                    hitBox.width = spriteWidth * 1.2f;
+                    hitBox.height = spriteHeight * 0.6f;
+                    hitBox.x = spriteX + (direction > 0 ? 0 : -spriteWidth) - hitBox.width * 0.1f;
+                    hitBox.y = spriteY + spriteHeight * 0.4f;
+                }
+            } else {
+                // No hit box for other states
+                hitBox = { 0, 0, 0, 0 };
+            }
+        }
+    }
+};
 
 #endif // CHARACTER_H 

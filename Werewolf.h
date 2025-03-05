@@ -130,25 +130,25 @@ public:
     }
     
     void draw() override {
-        Rectangle source = getAnimationFrame();
+        if (state == DEAD_WOLF && isDead) return;
         
-        if (direction == LEFT_WOLF) {
-            source.width = -source.width; // Flip horizontally
-        }
+        Rectangle frameRec = getAnimationFrame();
         
-        Rectangle dest = {
-            rect.x,
+        // Calculate destination rectangle
+        Rectangle destRec = {
+            rect.x + (direction == LEFT_WOLF ? rect.width : 0),
             rect.y,
-            source.width * 2.0f,
-            source.height * 2.0f
+            frameRec.width * (direction == LEFT_WOLF ? -2.0f : 2.0f),
+            frameRec.height * 2.0f
         };
         
-        DrawTexturePro(sprites[state], source, dest, Vector2{0, 0}, 0.0f, WHITE);
+        Color tint = isInvulnerable ? ColorAlpha(WHITE, 0.5f) : WHITE;
         
-        // Draw collision box if enabled
-        if (showCollisionBoxes) {
-            DrawRectangleLinesEx(rect, 1, GREEN);
-        }
+        // Draw the sprite
+        DrawTexturePro(sprites[state], frameRec, destRec, Vector2{0, 0}, 0.0f, tint);
+        
+        // Draw debug boxes
+        drawDebugBoxes();
     }
 
     void takeDamage(int damage) override {
@@ -213,25 +213,107 @@ public:
     }
     
     void applyVelocity() override {
-        float deltaTime = GetFrameTime();
-
-        velocity.y += GRAVITY * deltaTime;
-
-        rect.x += velocity.x * deltaTime;
-        rect.y += velocity.y * deltaTime;
-
-        if (rect.y >= GROUND_LEVEL) {
+        if (isDead) return;
+        
+        rect.x += velocity.x * GetFrameTime();
+        rect.y += velocity.y * GetFrameTime();
+        
+        // Apply gravity
+        if (!isOnGround) {
+            velocity.y += GRAVITY * GetFrameTime();
+        }
+        
+        // Check floor collision
+        if (rect.y + rect.height > GROUND_LEVEL + rect.height) {
             rect.y = GROUND_LEVEL;
             velocity.y = 0;
             isOnGround = true;
-            if (state == JUMP_WOLF) {
-                state = IDLE_WOLF;
-            }
         }
+        
+        // Update collision boxes when position changes
+        updateCollisionBoxes();
     }
     
     bool isAlive() override {
         return !isDead;
+    }
+
+    void updateCollisionBoxes() override {
+        // Get the current texture dimensions and frames based on state
+        Texture2D* currentTexture = &sprites[0]; // Default to idle
+        int framesInTexture = 8; // Assuming 8 frames for simplicity
+        
+        switch(state) {
+            case IDLE_WOLF: 
+                currentTexture = &sprites[IDLE_WOLF]; 
+                framesInTexture = 8;
+                break;
+            case WALK_WOLF: 
+                currentTexture = &sprites[WALK_WOLF]; 
+                framesInTexture = 8;
+                break;
+            case ATTACK_SWIPE: 
+                currentTexture = &sprites[ATTACK_SWIPE]; 
+                framesInTexture = 3;
+                break;
+            case HURT_WOLF: 
+                currentTexture = &sprites[HURT_WOLF]; 
+                framesInTexture = 1;
+                break;
+            case DEAD_WOLF: 
+                currentTexture = &sprites[DEAD_WOLF]; 
+                framesInTexture = 1;
+                break;
+            default: 
+                currentTexture = &sprites[IDLE_WOLF];
+                framesInTexture = 8;
+        }
+        
+        if (currentTexture->id != 0) {
+            // Calculate frame dimensions
+            float frameWidth = (float)currentTexture->width / framesInTexture;
+            float frameHeight = (float)currentTexture->height;
+            
+            // Calculate the actual position of the sprite
+            float spriteX = rect.x + (direction < 0 ? rect.width : 0);
+            float spriteY = rect.y - (frameHeight * 2.0f - rect.height);
+            float spriteWidth = frameWidth * 2.0f;
+            float spriteHeight = frameHeight * 2.0f;
+            
+            // Update collision box to match the sprite's actual body
+            // Make the collision box about 40% of the sprite width and 70% of the sprite height
+            // Position it to be centered horizontally and aligned with the bottom of the sprite
+            collisionBox.width = spriteWidth * 0.4f;
+            collisionBox.height = spriteHeight * 0.7f;
+            
+            // Adjust position based on direction
+            if (direction > 0) {
+                collisionBox.x = spriteX + (spriteWidth - collisionBox.width) / 2;
+            } else {
+                collisionBox.x = spriteX - spriteWidth + (spriteWidth - collisionBox.width) / 2;
+            }
+            
+            collisionBox.y = spriteY + spriteHeight - collisionBox.height;
+            
+            // Update hit box based on state and direction
+            if (state == ATTACK_SWIPE || state == ATTACK_RUN) {
+                // Attack hit box extends in front of the werewolf
+                if (direction > 0) {
+                    hitBox.width = spriteWidth * 0.6f;
+                    hitBox.height = spriteHeight * 0.5f;
+                    hitBox.x = spriteX + spriteWidth * 0.4f;
+                    hitBox.y = spriteY + spriteHeight * 0.3f;
+                } else {
+                    hitBox.width = spriteWidth * 0.6f;
+                    hitBox.height = spriteHeight * 0.5f;
+                    hitBox.x = spriteX - spriteWidth - hitBox.width * 0.5f;
+                    hitBox.y = spriteY + spriteHeight * 0.3f;
+                }
+            } else {
+                // No hit box for other states
+                hitBox = { 0, 0, 0, 0 };
+            }
+        }
     }
 };
 
