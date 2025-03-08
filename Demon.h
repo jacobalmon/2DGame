@@ -151,7 +151,7 @@ class Demon {
             explosionSound = LoadSound("sounds/demon/large-explosion-100420.wav");
             hurtSound = LoadSound("sounds/demon/mixkit-fantasy-monster-grunt-1977.wav");
             walkSound = LoadSound("sounds/demon/stompwav-14753.wav");
-            attackSound = LoadSound("sounds/demon/sword-slash-with-metallic-impact-185435.wav");
+            attackSound = LoadSound("sounds/demon/sword-clash-1-6917.wav");
         }
 
         void updateAnimation() {
@@ -260,6 +260,7 @@ class Demon {
                     }
                 }
                 direction = RIGHT_DEMON;
+                PlaySound(walkSound);
             }
             else if (IsKeyDown(KEY_K)) {
                 velocity.x = moveSpeed;
@@ -270,6 +271,7 @@ class Demon {
                     }
                 }
                 direction = LEFT_DEMON;
+                PlaySound(walkSound);
             }
             else {
                 if (state != HURT_DEMON && state != ATTACK_DEMON) {
@@ -286,11 +288,13 @@ class Demon {
                 hasFinishedAttack = false;
                 animations[ATTACK_DEMON].currentFrame = animations[ATTACK_DEMON].firstFrame;
                 velocity.x = 0.0f;  // Stop any movement during attack
+                PlaySound(attackSound);
             }
         
             // Damage control (only if the demon is not dead)
             if (IsKeyPressed(KEY_T) && !isDead) {
                 takeDamage(10);
+                PlaySound(hurtSound);
             }
         }                 
 
@@ -319,6 +323,8 @@ class Demon {
                 // Start the death animation from the first frame
                 animations[DEAD_DEMON].currentFrame = animations[DEAD_DEMON].firstFrame;
                 animations[DEAD_DEMON].timeLeft = animations[DEAD_DEMON].speed;
+                PlaySound(deathSound);
+                PlaySound(explosionSound);
             } else {
                 state = HURT_DEMON;  // Trigger hurt animation
                 animations[HURT_DEMON].currentFrame = animations[HURT_DEMON].firstFrame;
