@@ -56,6 +56,8 @@ class Demon {
         Sound walkSound;
         Sound laughSound;
 
+        bool isWalkingSoundPlaying = false;
+
         Demon(Vector2 position) {
             rect = { position.x, position.y, 64.0f, 64.0f };
             velocity = { 0.0f, 0.0f };
@@ -246,10 +248,10 @@ class Demon {
                 velocity.x = 0.0f;  // Stop movement
                 return;
             }
-        
-            float moveSpeed = 300.0f;
+    
+            float moveSpeed = 100.0f;
             velocity.x = 0.0f;
-        
+    
             // Movement controls (walking)
             if (IsKeyDown(KEY_H)) {
                 velocity.x = -moveSpeed;
@@ -260,7 +262,13 @@ class Demon {
                     }
                 }
                 direction = RIGHT_DEMON;
-                PlaySound(walkSound);
+    
+                // Play walking sound if it's not already playing
+                if (!isWalkingSoundPlaying) {
+                    PlaySound(walkSound);
+                     SetSoundPitch(walkSound, 1.4f);
+                    isWalkingSoundPlaying = true;
+                }
             }
             else if (IsKeyDown(KEY_K)) {
                 velocity.x = moveSpeed;
@@ -271,7 +279,13 @@ class Demon {
                     }
                 }
                 direction = LEFT_DEMON;
-                PlaySound(walkSound);
+    
+                // Play walking sound if it's not already playing
+                if (!isWalkingSoundPlaying) {
+                    PlaySound(walkSound);
+                    SetSoundPitch(walkSound, 1.4f);
+                    isWalkingSoundPlaying = true;
+                }
             }
             else {
                 if (state != HURT_DEMON && state != ATTACK_DEMON) {
@@ -280,8 +294,14 @@ class Demon {
                         animations[IDLE_DEMON].currentFrame = animations[IDLE_DEMON].firstFrame;
                     }
                 }
+    
+                // Stop walking sound when key is released
+                if (isWalkingSoundPlaying) {
+                    StopSound(walkSound);
+                    isWalkingSoundPlaying = false;
+                }
             }
-        
+    
             // Attack control: allow attack only if the previous attack has finished
             if (IsKeyPressed(KEY_L) && hasFinishedAttack) {
                 state = ATTACK_DEMON;
@@ -290,13 +310,13 @@ class Demon {
                 velocity.x = 0.0f;  // Stop any movement during attack
                 PlaySound(attackSound);
             }
-        
+    
             // Damage control (only if the demon is not dead)
             if (IsKeyPressed(KEY_T) && !isDead) {
                 takeDamage(10);
                 PlaySound(hurtSound);
             }
-        }                 
+        }           
 
         void applyVelocity() {
             // If the demon is hurt or dead, don't apply velocity
