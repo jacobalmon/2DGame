@@ -38,6 +38,7 @@ int main() {
 
     // Creating Demon.
     Demon demon((Vector2 {400, 300}));
+    demon.loadSounds();
 
     // Set FPS at 60.
     SetTargetFPS(60);

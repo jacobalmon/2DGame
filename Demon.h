@@ -47,6 +47,17 @@ class Demon {
 
         std::vector<AnimationDemon> animations;
 
+        // Sound Variables.
+        Sound deathSound;
+        Sound explosionSound;
+        Sound attackSound;
+        Sound hurtSound;
+        Sound dialogueSound;
+        Sound walkSound;
+        Sound laughSound;
+
+        bool isWalkingSoundPlaying = false;
+
         Demon(Vector2 position) {
             rect = { position.x, position.y, 64.0f, 64.0f };
             velocity = { 0.0f, 0.0f };
@@ -70,6 +81,13 @@ class Demon {
                     UnloadTexture(frame);  // Unload individual frames
                 }
             }
+            UnloadSound(attackSound);
+            UnloadSound(laughSound);
+            UnloadSound(deathSound);
+            UnloadSound(dialogueSound);
+            UnloadSound(hurtSound);
+            UnloadSound(explosionSound);
+            UnloadSound(walkSound);
         }
 
         void loadAnimations() {
@@ -126,6 +144,16 @@ class Demon {
                 anim.lastFrame = anim.frames.size() - 1;
                 animations.push_back(anim);
             }
+        }
+
+        void loadSounds() {
+            laughSound = LoadSound("sounds/demon/demon-2-102993.wav");
+            deathSound = LoadSound("sounds/demon/demonic-roar-40349.wav");
+            dialogueSound = LoadSound("sounds/demon/devil-says2-73855.wav");
+            explosionSound = LoadSound("sounds/demon/large-explosion-100420.wav");
+            hurtSound = LoadSound("sounds/demon/mixkit-fantasy-monster-grunt-1977.wav");
+            walkSound = LoadSound("sounds/demon/stompwav-14753.wav");
+            attackSound = LoadSound("sounds/demon/sword-clash-1-6917.wav");
         }
 
         void updateAnimation() {
@@ -220,10 +248,10 @@ class Demon {
                 velocity.x = 0.0f;  // Stop movement
                 return;
             }
-        
-            float moveSpeed = 300.0f;
+    
+            float moveSpeed = 100.0f;
             velocity.x = 0.0f;
-        
+    
             // Movement controls (walking)
             if (IsKeyDown(KEY_H)) {
                 velocity.x = -moveSpeed;
@@ -234,6 +262,13 @@ class Demon {
                     }
                 }
                 direction = RIGHT_DEMON;
+    
+                // Play walking sound if it's not already playing
+                if (!isWalkingSoundPlaying) {
+                    PlaySound(walkSound);
+                     SetSoundPitch(walkSound, 1.4f);
+                    isWalkingSoundPlaying = true;
+                }
             }
             else if (IsKeyDown(KEY_K)) {
                 velocity.x = moveSpeed;
@@ -244,6 +279,13 @@ class Demon {
                     }
                 }
                 direction = LEFT_DEMON;
+    
+                // Play walking sound if it's not already playing
+                if (!isWalkingSoundPlaying) {
+                    PlaySound(walkSound);
+                    SetSoundPitch(walkSound, 1.4f);
+                    isWalkingSoundPlaying = true;
+                }
             }
             else {
                 if (state != HURT_DEMON && state != ATTACK_DEMON) {
@@ -252,21 +294,29 @@ class Demon {
                         animations[IDLE_DEMON].currentFrame = animations[IDLE_DEMON].firstFrame;
                     }
                 }
+    
+                // Stop walking sound when key is released
+                if (isWalkingSoundPlaying) {
+                    StopSound(walkSound);
+                    isWalkingSoundPlaying = false;
+                }
             }
-        
+    
             // Attack control: allow attack only if the previous attack has finished
             if (IsKeyPressed(KEY_L) && hasFinishedAttack) {
                 state = ATTACK_DEMON;
                 hasFinishedAttack = false;
                 animations[ATTACK_DEMON].currentFrame = animations[ATTACK_DEMON].firstFrame;
                 velocity.x = 0.0f;  // Stop any movement during attack
+                PlaySound(attackSound);
             }
-        
+    
             // Damage control (only if the demon is not dead)
             if (IsKeyPressed(KEY_T) && !isDead) {
                 takeDamage(10);
+                PlaySound(hurtSound);
             }
-        }                 
+        }           
 
         void applyVelocity() {
             // If the demon is hurt or dead, don't apply velocity
@@ -293,6 +343,8 @@ class Demon {
                 // Start the death animation from the first frame
                 animations[DEAD_DEMON].currentFrame = animations[DEAD_DEMON].firstFrame;
                 animations[DEAD_DEMON].timeLeft = animations[DEAD_DEMON].speed;
+                PlaySound(deathSound);
+                PlaySound(explosionSound);
             } else {
                 state = HURT_DEMON;  // Trigger hurt animation
                 animations[HURT_DEMON].currentFrame = animations[HURT_DEMON].firstFrame;
