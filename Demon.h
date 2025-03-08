@@ -215,56 +215,42 @@ class Demon {
         }
 
         void move() {
-            // Don't allow any movement if the demon is dead
-            if (isDead) return;
-        
-            // If the demon is currently attacking, don't process movement keys
-            if (state == ATTACK_DEMON) {
-                velocity.x = 0.0f;
-                // Still allow other inputs like taking damage if needed
-                if (IsKeyPressed(KEY_T) && !isDead) {
-                    takeDamage(10);
-                }
+            // Don't allow any movement if the demon is dead or hurt
+            if (isDead || state == ATTACK_DEMON || state == HURT_DEMON) {
+                velocity.x = 0.0f;  // Stop movement
                 return;
             }
         
-            // If the demon is hurt, we do not allow movement, just play the hurt animation
-            if (state == HURT_DEMON) {
-                // If hurt animation is finished, we can return to idle state
-                if (animations[HURT_DEMON].currentFrame == animations[HURT_DEMON].lastFrame) {
-                    state = IDLE_DEMON; // or any other default state after hurt
-                    animations[HURT_DEMON].currentFrame = animations[HURT_DEMON].firstFrame; // Reset hurt animation to the start
-                }
-                return;
-            }
-        
-            // Define the movement speed for walking
             float moveSpeed = 300.0f;
             velocity.x = 0.0f;
         
             // Movement controls (walking)
             if (IsKeyDown(KEY_H)) {
                 velocity.x = -moveSpeed;
-                direction = RIGHT_DEMON;
-                // Only change state to WALK_DEMON if it's not currently walking or hurt
-                if (state != WALK_DEMON && state != HURT_DEMON) {
-                    state = WALK_DEMON;
-                    animations[WALK_DEMON].currentFrame = animations[WALK_DEMON].firstFrame; // Reset walking animation to start
+                if (state != HURT_DEMON && state != ATTACK_DEMON) {
+                    if (state != WALK_DEMON) {  // Only change to WALK_DEMON if not already walking
+                        state = WALK_DEMON;
+                        animations[WALK_DEMON].currentFrame = animations[WALK_DEMON].firstFrame;
+                    }
                 }
+                direction = RIGHT_DEMON;
             }
             else if (IsKeyDown(KEY_K)) {
                 velocity.x = moveSpeed;
-                direction = LEFT_DEMON;
-                // Only change state to WALK_DEMON if it's not currently walking or hurt
-                if (state != WALK_DEMON && state != HURT_DEMON) {
-                    state = WALK_DEMON;
-                    animations[WALK_DEMON].currentFrame = animations[WALK_DEMON].firstFrame; // Reset walking animation to start
+                if (state != HURT_DEMON && state != ATTACK_DEMON) {
+                    if (state != WALK_DEMON) {  // Only change to WALK_DEMON if not already walking
+                        state = WALK_DEMON;
+                        animations[WALK_DEMON].currentFrame = animations[WALK_DEMON].firstFrame;
+                    }
                 }
+                direction = LEFT_DEMON;
             }
             else {
-                // If the demon is not moving, go idle
-                if (state != HURT_DEMON) {
-                    state = IDLE_DEMON;
+                if (state != HURT_DEMON && state != ATTACK_DEMON) {
+                    if (state != IDLE_DEMON) {  // Only change to IDLE_DEMON if not already idle
+                        state = IDLE_DEMON;
+                        animations[IDLE_DEMON].currentFrame = animations[IDLE_DEMON].firstFrame;
+                    }
                 }
             }
         
@@ -274,20 +260,25 @@ class Demon {
                 hasFinishedAttack = false;
                 animations[ATTACK_DEMON].currentFrame = animations[ATTACK_DEMON].firstFrame;
                 velocity.x = 0.0f;  // Stop any movement during attack
-                printf("Attack initiated: state = ATTACK_DEMON\n");
             }
         
             // Damage control (only if the demon is not dead)
             if (IsKeyPressed(KEY_T) && !isDead) {
                 takeDamage(10);
             }
-        }             
+        }                 
 
         void applyVelocity() {
+            // If the demon is hurt or dead, don't apply velocity
+            if (state == HURT_DEMON || isDead) {
+                velocity.x = 0.0f;  // Stop movement
+                velocity.y = 0.0f;  // Prevent vertical movement too
+            }
+        
             float deltaTime = GetFrameTime();
             rect.x += velocity.x * deltaTime;
             rect.y += velocity.y * deltaTime;
-        }
+        }        
 
         void takeDamage(int damage) {
             if (isDead) return;  // Do nothing if the demon is already dead
