@@ -146,55 +146,51 @@ public:
 
     // Handle Goblin's movement based on key inputs
     void move() {
-        if (!hasFinishedAttack) return;  // Don't move while attacking
-
-        float moveSpeed = 300.0f;  // Movement speed
-        velocity.x = 0.0f;  // Reset horizontal velocity
-
-        // Move left if X key is pressed
+        if (!hasFinishedAttack) return;  
+    
+        float moveSpeed = 300.0f;
+        velocity.x = 0.0f;  
+    
         if (IsKeyDown(KEY_X)) {
             velocity.x = -moveSpeed;
             direction = LEFT_GOBLIN;
             state = WALK_GOBLIN;
         } 
-        // Move right if C key is pressed
         else if (IsKeyDown(KEY_C)) {
             velocity.x = moveSpeed;
             direction = RIGHT_GOBLIN;
             state = WALK_GOBLIN;
         } 
-        // Stay idle if no movement keys are pressed
         else {
             state = IDLE_GOBLIN;
         }
-
-        // Attack commands (using number pad keys)
-        if (IsKeyPressed(KEY_KP_1)) {
-            if (hasFinishedAttack) {
-                state = ATTACK_CLUB;
-                hasFinishedAttack = false;  // Start the club attack animation
-                animations[ATTACK_CLUB].currentFrame = animations[ATTACK_CLUB].firstFrame;  // Reset to first frame
-            }
+    
+        // When attacking, reset velocity to stop movement
+        if (IsKeyPressed(KEY_KP_1) && hasFinishedAttack) {
+            state = ATTACK_CLUB;
+            hasFinishedAttack = false;
+            velocity.x = 0; // Prevent movement during attack
+            animations[ATTACK_CLUB].currentFrame = animations[ATTACK_CLUB].firstFrame;
         }
-        if (IsKeyPressed(KEY_KP_2)) {
-            if (hasFinishedAttack) {
-                state = ATTACK_STOMP;
-                hasFinishedAttack = false;
-                animations[ATTACK_STOMP].currentFrame = animations[ATTACK_STOMP].firstFrame;  // Reset to first frame
-            }
+        if (IsKeyPressed(KEY_KP_2) && hasFinishedAttack) {
+            state = ATTACK_STOMP;
+            hasFinishedAttack = false;
+            velocity.x = 0;
+            animations[ATTACK_STOMP].currentFrame = animations[ATTACK_STOMP].firstFrame;
         }
-        if (IsKeyPressed(KEY_KP_3)) {
-            if (hasFinishedAttack) {
-                state = ATTACK_AOE;
-                hasFinishedAttack = false;
-                animations[ATTACK_AOE].currentFrame = animations[ATTACK_AOE].firstFrame;  // Reset to first frame
-            }
+        if (IsKeyPressed(KEY_KP_3) && hasFinishedAttack) {
+            state = ATTACK_AOE;
+            hasFinishedAttack = false;
+            velocity.x = 0;
+            animations[ATTACK_AOE].currentFrame = animations[ATTACK_AOE].firstFrame;
         }
     }
 
     // Apply velocity to the Goblin's position based on time
     void applyVelocity() {
-        rect.x += velocity.x * GetFrameTime();  // Update horizontal position
-        rect.y += velocity.y * GetFrameTime();  // Update vertical position
-    }
+        // Apply velocity only when not attacking
+        if (hasFinishedAttack) {
+            rect.x += velocity.x * GetFrameTime();
+        }
+    }    
 };
