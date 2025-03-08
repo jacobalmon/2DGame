@@ -133,47 +133,48 @@ class Demon {
             float deltaTime = GetFrameTime();
             anim.timeLeft -= deltaTime;
         
-            // If the demon is dead, make sure the dead animation plays through fully
             if (isDead) {
-                state = DEAD_DEMON;  // Ensure dead animation is active
+                state = DEAD_DEMON;
                 if (anim.timeLeft <= 0) {
                     anim.timeLeft = anim.speed;
                     anim.currentFrame++;
                     if (anim.currentFrame > anim.lastFrame) {
-                        anim.currentFrame = anim.lastFrame;  // Stay on the last frame
-                        return;  // Exit, demon is dead, no more animation updates needed
+                        anim.currentFrame = anim.lastFrame;
+                        return;
                     }
                 }
             }
-            // Handle hurt animation
             else if (state == HURT_DEMON) {
                 if (anim.timeLeft <= 0) {
                     anim.timeLeft = anim.speed;
                     anim.currentFrame++;
                     if (anim.currentFrame > anim.lastFrame) {
-                        anim.currentFrame = anim.firstFrame;  // Restart or loop
-                        state = IDLE_DEMON;  // After hurt, go back to idle
+                        anim.currentFrame = anim.firstFrame;
+                        state = IDLE_DEMON;
                     }
                 }
             }
-            // Handle other animations (walking, attacking, etc.)
             else {
                 if (anim.timeLeft <= 0) {
                     anim.timeLeft = anim.speed;
                     anim.currentFrame++;
                     if (anim.currentFrame > anim.lastFrame) {
                         if (anim.type == REPEATING_DEMON) {
-                            anim.currentFrame = anim.firstFrame;  // Loop back to first frame
+                            anim.currentFrame = anim.firstFrame;
                         } else {
-                            anim.currentFrame = anim.lastFrame;  // Hold on the last frame
+                            anim.currentFrame = anim.lastFrame;
                             if (state == ATTACK_DEMON) {
-                                hasFinishedAttack = true; // Animation is complete
+                                hasFinishedAttack = true;
+                                printf("Attack animation finished: hasFinishedAttack = true\n");
                             }
                         }
                     }
                 }
             }
-        }
+        
+            // Debugging log
+            printf("Current state: %d, currentFrame: %d\n", state, anim.currentFrame);
+        }               
 
         Rectangle getAnimationFrame() const {
             const AnimationDemon& anim = animations[state];
@@ -201,16 +202,13 @@ class Demon {
         }
 
         void move() {
-            // Don't allow movement if the demon is dead
             if (isDead) return;
         
-            // Stop attack if hurt or dead
             if (state == HURT_DEMON || state == DEAD_DEMON) return;
         
             float moveSpeed = 300.0f;
             velocity.x = 0.0f;
         
-            // Movement controls (walking)
             if (IsKeyDown(KEY_H)) {
                 velocity.x = -moveSpeed;
                 direction = RIGHT_DEMON;
@@ -225,19 +223,20 @@ class Demon {
                 state = IDLE_DEMON;
             }
         
-            // Attack control (if not hurt or dead)
             if (IsKeyPressed(KEY_L) && hasFinishedAttack) {
                 state = ATTACK_DEMON;
                 hasFinishedAttack = false;
                 animations[ATTACK_DEMON].currentFrame = animations[ATTACK_DEMON].firstFrame;
-                velocity.x = 0.0f;  // Stop movement during attack
+                velocity.x = 0.0f; // Stop movement during attack
+        
+                // Debugging log
+                printf("Attack initiated: state = ATTACK_DEMON\n");
             }
         
-            // Damage control (only if the demon is not dead)
             if (IsKeyPressed(KEY_T) && !isDead) {
-                takeDamage(10);  // Demon takes 10 damage
+                takeDamage(10);
             }
-        }
+        }        
 
         void applyVelocity() {
             float deltaTime = GetFrameTime();
