@@ -125,47 +125,64 @@ public:
     }
 
     void move() {
+        // Don't allow movement if we're in the middle of an attack
         if (!hasFinishedAttack) return;
     
         float moveSpeed = 300.0f;
-        velocity.x = 0.0f;
+        velocity.x = 0.0f;  // Reset horizontal velocity during attack
     
-        // Allow movement while jumping without changing state
+        // Handle movement only if not attacking
         if (IsKeyDown(KEY_V)) {
             velocity.x = -moveSpeed;
             direction = LEFT_WOLF;
-            if (isOnGround) state = WALK_WOLF;
+            if (isOnGround) {
+                if (state != ATTACK_SWIPE && state != ATTACK_RUN) {
+                    state = WALK_WOLF;
+                }
+            }
         } 
         else if (IsKeyDown(KEY_B)) {
             velocity.x = moveSpeed;
             direction = RIGHT_WOLF;
-            if (isOnGround) state = WALK_WOLF;
+            if (isOnGround) {
+                if (state != ATTACK_SWIPE && state != ATTACK_RUN) {
+                    state = WALK_WOLF;
+                }
+            }
         } 
-        else if (isOnGround) {
+        else if (isOnGround && state != ATTACK_SWIPE && state != ATTACK_RUN) {
             state = IDLE_WOLF;
         }
     
+        // Jump logic
         if (IsKeyPressed(KEY_G) && isOnGround) {
             velocity.y = JUMP_FORCE;
             state = JUMP_WOLF;
             isOnGround = false;
-    
-            // Restart jump animation when pressing jump
             animations[JUMP_WOLF].currentFrame = animations[JUMP_WOLF].firstFrame;
         }
     
+        // Swipe attack logic
         if (IsKeyPressed(KEY_KP_4) && hasFinishedAttack) {
             state = ATTACK_SWIPE;
             hasFinishedAttack = false;
+            velocity.x = 0;
             animations[ATTACK_SWIPE].currentFrame = animations[ATTACK_SWIPE].firstFrame;
         }
     
+        // Run attack logic
         if (IsKeyPressed(KEY_KP_5) && hasFinishedAttack) {
             state = ATTACK_RUN;
             hasFinishedAttack = false;
+            velocity.x = 0;
             animations[ATTACK_RUN].currentFrame = animations[ATTACK_RUN].firstFrame;
         }
-    }
+    
+        // Reset to idle after the attack finishes
+        if (hasFinishedAttack && (state == ATTACK_SWIPE || state == ATTACK_RUN)) {
+            state = IDLE_WOLF;
+        }
+    }      
     
     void applyVelocity() {
         float deltaTime = GetFrameTime();
