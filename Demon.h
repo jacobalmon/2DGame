@@ -154,6 +154,18 @@ class Demon {
                     }
                 }
             }
+            else if (state == ATTACK_DEMON) {
+                // Keep the attack animation running until it finishes
+                if (anim.timeLeft <= 0) {
+                    anim.timeLeft = anim.speed;
+                    anim.currentFrame++;
+                    if (anim.currentFrame > anim.lastFrame) {
+                        anim.currentFrame = anim.lastFrame;
+                        hasFinishedAttack = true;
+                        printf("Attack animation finished: hasFinishedAttack = true\n");
+                    }
+                }
+            }
             else {
                 if (anim.timeLeft <= 0) {
                     anim.timeLeft = anim.speed;
@@ -163,9 +175,8 @@ class Demon {
                             anim.currentFrame = anim.firstFrame;
                         } else {
                             anim.currentFrame = anim.lastFrame;
-                            if (state == ATTACK_DEMON) {
-                                hasFinishedAttack = true;
-                                printf("Attack animation finished: hasFinishedAttack = true\n");
+                            if (state != ATTACK_DEMON) { // Only go back to idle if not attacking
+                                state = IDLE_DEMON;
                             }
                         }
                     }
@@ -209,20 +220,28 @@ class Demon {
             float moveSpeed = 300.0f;
             velocity.x = 0.0f;
         
+            // Handle movement
             if (IsKeyDown(KEY_H)) {
                 velocity.x = -moveSpeed;
                 direction = RIGHT_DEMON;
-                state = WALK_DEMON;
+                if (state != ATTACK_DEMON) {
+                    state = WALK_DEMON;
+                }
             }
             else if (IsKeyDown(KEY_K)) {
                 velocity.x = moveSpeed;
                 direction = LEFT_DEMON;
-                state = WALK_DEMON;
+                if (state != ATTACK_DEMON) {
+                    state = WALK_DEMON;
+                }
             }
             else {
-                state = IDLE_DEMON;
+                if (state != ATTACK_DEMON) {
+                    state = IDLE_DEMON;
+                }
             }
         
+            // Trigger attack, but only if we haven't already started the attack
             if (IsKeyPressed(KEY_L) && hasFinishedAttack) {
                 state = ATTACK_DEMON;
                 hasFinishedAttack = false;
