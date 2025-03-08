@@ -155,14 +155,16 @@ class Demon {
                 }
             }
             else if (state == ATTACK_DEMON) {
-                // Keep the attack animation running until it finishes
                 if (anim.timeLeft <= 0) {
                     anim.timeLeft = anim.speed;
                     anim.currentFrame++;
                     if (anim.currentFrame > anim.lastFrame) {
-                        anim.currentFrame = anim.lastFrame;
-                        hasFinishedAttack = true;
-                        printf("Attack animation finished: hasFinishedAttack = true\n");
+                        anim.currentFrame = anim.lastFrame;  // Hold on the last frame
+                        hasFinishedAttack = true;            // Mark attack as finished
+                        state = IDLE_DEMON;                  // Transition back to idle
+                        // Optionally reset the idle animation frame:
+                        // animations[IDLE_DEMON].currentFrame = animations[IDLE_DEMON].firstFrame;
+                        printf("Attack animation finished: now going to idle\n");
                     }
                 }
             }
@@ -213,49 +215,51 @@ class Demon {
         }
 
         void move() {
+            // Don't allow any movement if the demon is dead
             if (isDead) return;
         
-            if (state == HURT_DEMON || state == DEAD_DEMON) return;
+            // If the demon is currently attacking, don't process movement keys
+            if (state == ATTACK_DEMON) {
+                velocity.x = 0.0f;
+                // Still allow other inputs like taking damage if needed
+                if (IsKeyPressed(KEY_T) && !isDead) {
+                    takeDamage(10);
+                }
+                return;
+            }
         
             float moveSpeed = 300.0f;
             velocity.x = 0.0f;
         
-            // Handle movement
+            // Movement controls (walking)
             if (IsKeyDown(KEY_H)) {
                 velocity.x = -moveSpeed;
                 direction = RIGHT_DEMON;
-                if (state != ATTACK_DEMON) {
-                    state = WALK_DEMON;
-                }
+                state = WALK_DEMON;
             }
             else if (IsKeyDown(KEY_K)) {
                 velocity.x = moveSpeed;
                 direction = LEFT_DEMON;
-                if (state != ATTACK_DEMON) {
-                    state = WALK_DEMON;
-                }
+                state = WALK_DEMON;
             }
             else {
-                if (state != ATTACK_DEMON) {
-                    state = IDLE_DEMON;
-                }
+                state = IDLE_DEMON;
             }
         
-            // Trigger attack, but only if we haven't already started the attack
+            // Attack control: allow attack only if the previous attack has finished
             if (IsKeyPressed(KEY_L) && hasFinishedAttack) {
                 state = ATTACK_DEMON;
                 hasFinishedAttack = false;
                 animations[ATTACK_DEMON].currentFrame = animations[ATTACK_DEMON].firstFrame;
-                velocity.x = 0.0f; // Stop movement during attack
-        
-                // Debugging log
+                velocity.x = 0.0f;  // Stop any movement during attack
                 printf("Attack initiated: state = ATTACK_DEMON\n");
             }
         
+            // Damage control (only if the demon is not dead)
             if (IsKeyPressed(KEY_T) && !isDead) {
                 takeDamage(10);
             }
-        }        
+        }          
 
         void applyVelocity() {
             float deltaTime = GetFrameTime();
