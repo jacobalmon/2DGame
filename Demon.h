@@ -47,6 +47,15 @@ class Demon {
 
         std::vector<AnimationDemon> animations;
 
+        // Sound Variables.
+        Sound deathSound;
+        Sound explosionSound;
+        Sound attackSound;
+        Sound hurtSound;
+        Sound dialogueSound;
+        Sound walkSound;
+        Sound laughSound;
+
         Demon(Vector2 position) {
             rect = { position.x, position.y, 64.0f, 64.0f };
             velocity = { 0.0f, 0.0f };
@@ -70,6 +79,13 @@ class Demon {
                     UnloadTexture(frame);  // Unload individual frames
                 }
             }
+            UnloadSound(attackSound);
+            UnloadSound(laughSound);
+            UnloadSound(deathSound);
+            UnloadSound(dialogueSound);
+            UnloadSound(hurtSound);
+            UnloadSound(explosionSound);
+            UnloadSound(walkSound);
         }
 
         void loadAnimations() {
@@ -126,6 +142,16 @@ class Demon {
                 anim.lastFrame = anim.frames.size() - 1;
                 animations.push_back(anim);
             }
+        }
+
+        void loadSounds() {
+            laughSound = LoadSound("sounds/demon/demon-2-102993.wav");
+            deathSound = LoadSound("sounds/demon/demonic-roar-40349.wav");
+            dialogueSound = LoadSound("sounds/demon/devil-says2-73855.wav");
+            explosionSound = LoadSound("sounds/demon/large-explosion-100420.wav");
+            hurtSound = LoadSound("sounds/demon/mixkit-fantasy-monster-grunt-1977.wav");
+            walkSound = LoadSound("sounds/demon/stompwav-14753.wav");
+            attackSound = LoadSound("sounds/demon/sword-slash-with-metallic-impact-185435.wav");
         }
 
         void updateAnimation() {
