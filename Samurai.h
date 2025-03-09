@@ -335,7 +335,7 @@ public:
         };
 
         // Flip sprite if facing left.
-        source.width *= direction;  
+        source.width *= static_cast<int>(direction);
 
         // Draw the sprite.
         DrawTexturePro(sprites[state], source, dest, {0, 0}, 0.0f, WHITE);
@@ -362,5 +362,15 @@ public:
         updateAnimation(); // Update the animation state.
         checkForHealing(); // Check if the healing key is pressed.
         checkForDamage(); // Check if the damage key is pressed.
+    }
+    
+    // Returns the center position of the samurai
+    // Added getter method to retrieve the current position.
+    Vector2 getPosition() const 
+    {
+        return 
+        { 
+            rect.x + rect.width / 2.0f, rect.y + rect.height / 2.0f 
+        };
     }
 };

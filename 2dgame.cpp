@@ -1,5 +1,7 @@
+#define RAYTMX_IMPLEMENTATION
 #include <raylib.h>
-#include <raytmx.h>
+#include "raytmx.h"
+// #include <raytmx.h> // <== This is the original.
 #include <iostream>
 #include "Samurai.h"
 #include "Goblin.h"
@@ -7,20 +9,51 @@
 #include "Wizard.h"
 #include "Demon.h"
 
-int main() {
-    InitWindow(800, 600, "2D Game");
+// This is where you put a bunch of png in layer. Top to bottom.
+static std::vector<std::string> layerPaths = {
+    "assets/Backgrounds/Test_Background_layers/Layer_0011_0.png",
+    "assets/Backgrounds/Test_Background_layers/Layer_0010_1.png",
+    "assets/Backgrounds/Test_Background_layers/Layer_0009_2.png",
+    "assets/Backgrounds/Test_Background_layers/Layer_0008_3.png",
+    "assets/Backgrounds/Test_Background_layers/Layer_0007_Lights.png",
+    "assets/Backgrounds/Test_Background_layers/Layer_0006_4.png",
+    "assets/Backgrounds/Test_Background_layers/Layer_0005_5.png",
+    "assets/Backgrounds/Test_Background_layers/Layer_0004_Lights.png",
+    "assets/Backgrounds/Test_Background_layers/Layer_0003_6.png",
+    "assets/Backgrounds/Test_Background_layers/Layer_0002_7.png",
+    "assets/Backgrounds/Test_Background_layers/Layer_0001_8.png",
+    "assets/Backgrounds/Test_Background_layers/Layer_0000_9.png"
+};
 
+int main() 
+{
+    InitWindow(1600, 800, "2D Game"); // <== Change the size to fit your screen
+
+     // Load TMX level
+    const char* tmxFile = "resources/Room1-B.tmx";
+    TmxMap* level = LoadTMX(tmxFile);
+    if (level == nullptr) {
+        TraceLog(LOG_ERROR, "Could not load level: %s", tmxFile);
+        return EXIT_FAILURE;
+    }
+
+    // Load all layers into a vector of Texture2D
+    std::vector<Texture2D> backgroundLayers;
+    backgroundLayers.reserve(layerPaths.size());
+    for (const auto &path : layerPaths)
+    {
+        backgroundLayers.push_back(LoadTexture(path.c_str()));
+    }
+    
     // Initialize audio device before loading music
     InitAudioDevice(); 
-
     // Load background music, Note this is a placeholder music file, this is the final boss music.
     Music backgroundMusic = LoadMusicStream("music/Lady Maria of the Astral Clocktower.mp3");  // Replace with your music file path.
-
     PlayMusicStream(backgroundMusic);  // Start playing the music
-    SetMusicVolume(backgroundMusic, 0.5f);  // Adjust the volume if necessary (0.0 to 1.0)
+    SetMusicVolume(backgroundMusic, 0.0f);  // Adjust the volume if necessary (0.0 to 1.0)
 
     // Creating Samurai.
-    Samurai samurai((Vector2) {400, 300});
+    Samurai samurai((Vector2) {400, 1135});
     samurai.loadTextures();
     samurai.loadSounds();
 
@@ -38,12 +71,21 @@ int main() {
 
     // Creating Demon.
     Demon demon((Vector2 {400, 300}));
-    demon.loadSounds();
 
-    // Set FPS at 60.
+    // Set up the camera.
+    Camera2D camera = {0};
+    camera.target = (Vector2){400, 300};
+    camera.offset = (Vector2){800, 400};
+    camera.rotation = 0.0f;
+    camera.zoom = 2.0f; // Zooming in or out
+
+    
+
+     // Set FPS at 60.
     SetTargetFPS(60);
-
-    while (!WindowShouldClose()) {
+    
+    while (!WindowShouldClose()) 
+    {
         // Update background music stream
         UpdateMusicStream(backgroundMusic);  // Ensure music keeps playing
 
@@ -66,19 +108,56 @@ int main() {
         demon.applyVelocity();
         demon.updateAnimation();
 
+        camera.target = samurai.getPosition(); // Track the samurai
+
         // Drawing.
         BeginDrawing();
-        ClearBackground(GREEN);
-        samurai.draw();
+            ClearBackground(GREEN);
+            
+            int offset = 50;
+            for (auto &layer : backgroundLayers) // each layer in a loop
+            {
+                DrawTexturePro
+                (
+                    layer,
+                    Rectangle{ 0, 0, (float)layer.width, (float)layer.height },
+                    Rectangle{ 0, -50, (float)GetScreenWidth(), (float)GetScreenHeight() },
+                    Vector2{ 0, 0 },
+                    0.0f,
+                    WHITE
+                );
+                
+                DrawTexturePro( // No green screen
+                layer,
+                Rectangle{ 0, layer.height - offset, (float)layer.width, (float)offset },
+                Rectangle{ 0, (float)GetScreenHeight() - offset, (float)GetScreenWidth(), (float)offset },
+                Vector2{ 0, 0 },
+                0.0f,
+                WHITE
+                );
+            }
+            
+            BeginMode2D(camera); // Camera lock in
+                DrawTMX(level, &camera, 0, 0, WHITE); // level
+                samurai.draw();
+                goblin.draw();
+                werewolf.draw();
+                wizard.draw();
+                demon.draw();
+        
+            EndMode2D();
+        
         samurai.drawHealthBar();
-        goblin.draw();
-        werewolf.draw();
-        wizard.draw();
-        demon.draw();
         EndDrawing();
     }
 
+    for (auto &layer : backgroundLayers)
+    {
+        UnloadTexture(layer);
+    }
+    
     // Unload music and close window
+    UnloadTMX(level);
     UnloadMusicStream(backgroundMusic);  // Free the music resources
     CloseAudioDevice();  // Close the audio device
     CloseWindow();  // Close the window
