@@ -25,7 +25,6 @@ enum AnimationTypeWizard {
     ONESHOT_WIZARD
 };
 
-// Fix: Use struct instead of enum
 struct AnimationWizard {
     int firstFrame, lastFrame, currentFrame, offset;
     float speed, timeLeft;
@@ -39,6 +38,7 @@ class Wizard {
         DirectionWizard direction;
         CurrentStateWizard state;
         bool isOnGround = true;
+        int health = 100; // Wizard's health
 
         std::vector<AnimationWizard> animations;
         std::vector<Texture2D> sprites;
@@ -53,13 +53,13 @@ class Wizard {
             state = IDLE_WIZARD; 
 
             animations = {
-                {0, 7, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD},
-                {0, 7, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD},
-                {0, 7, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD},
-                {0, 2, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD},
-                {0, 7, 0, 0, 0.1f, 0.1f, REPEATING_WIZARD},
-                {0, 1, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD},
-                {0, 7, 0, 0, 0.1f, 0.1f, REPEATING_WIZARD}
+                {0, 7, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD}, // DEAD
+                {0, 7, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD}, // ATTACK1
+                {0, 7, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD}, // ATTACK2
+                {0, 2, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD}, // HURT
+                {0, 7, 0, 0, 0.1f, 0.1f, REPEATING_WIZARD}, // IDLE
+                {0, 1, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD}, // JUMP
+                {0, 7, 0, 0, 0.1f, 0.1f, REPEATING_WIZARD} // RUN
             }; 
         }
 
@@ -69,7 +69,7 @@ class Wizard {
             }
         }
 
-        void loadTextures()  {
+        void loadTextures() {
             sprites.resize(7);
 
             sprites[DEAD_WIZARD] = LoadTexture("assets/Wizard/Sprites/Death.png");
@@ -81,25 +81,42 @@ class Wizard {
             sprites[RUN_WIZARD] = LoadTexture("assets/Wizard/Sprites/Run.png");
         }
 
+        void takeDamage(int damage) {
+            health -= damage;
+            if (health <= 0) {
+                health = 0;
+                state = DEAD_WIZARD;
+                hasFinishedAttack = true; // Prevent further actions
+            } else {
+                state = HURT_WIZARD;
+                animations[HURT_WIZARD].currentFrame = animations[HURT_WIZARD].firstFrame;
+            }
+        }
+
         void updateAnimation() {
             AnimationWizard& anim = animations[state];
             float deltaTime = GetFrameTime();
             anim.timeLeft -= deltaTime;
-    
+        
             if (anim.timeLeft <= 0) {
                 anim.timeLeft = anim.speed;
                 anim.currentFrame++;
-    
+        
                 if (anim.currentFrame > anim.lastFrame) {
                     if (anim.type == REPEATING_WIZARD) {
                         anim.currentFrame = anim.firstFrame;
                     } else {
                         anim.currentFrame = anim.lastFrame;
                         hasFinishedAttack = true;
+        
+                        // Reset state after being hurt
+                        if (state == HURT_WIZARD) {
+                            state = IDLE_WIZARD;
+                        }
                     }
                 }
             }
-        }
+        }        
 
         Rectangle getAnimationFrame() const {
             const AnimationWizard& anim = animations[state];
@@ -116,7 +133,7 @@ class Wizard {
             Rectangle dest = { rect.x, rect.y, rect.width * scale, rect.height * scale };
     
             if (direction == LEFT_WIZARD) {
-                source.x += source.width; // Fix: Proper mirroring
+                source.x += source.width;
                 source.width = -source.width;
             }
     
@@ -124,7 +141,7 @@ class Wizard {
         }
 
         void move() {
-            if (!hasFinishedAttack) return;
+            if (!hasFinishedAttack || state == HURT_WIZARD) return; // Prevent movement if hurt is playing
         
             float moveSpeed = 300.0f;
             velocity.x = 0.0f;
@@ -154,16 +171,22 @@ class Wizard {
             if (IsKeyPressed(KEY_KP_7) && hasFinishedAttack) {
                 state = ATTACK1_WIZARD;
                 hasFinishedAttack = false;
+                velocity.x = 0;
                 animations[ATTACK1_WIZARD].currentFrame = animations[ATTACK1_WIZARD].firstFrame;
             }
         
             if (IsKeyPressed(KEY_KP_8) && hasFinishedAttack) {
                 state = ATTACK2_WIZARD;
                 hasFinishedAttack = false;
+                velocity.x = 0;
                 animations[ATTACK2_WIZARD].currentFrame = animations[ATTACK2_WIZARD].firstFrame;
             }
+        
+            if (IsKeyPressed(KEY_H)) {
+                takeDamage(20);
+            }
         }
-
+        
         void applyVelocity() {
             float deltaTime = GetFrameTime();
     
