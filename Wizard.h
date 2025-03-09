@@ -53,7 +53,7 @@ class Wizard {
             state = IDLE_WIZARD; 
 
             animations = {
-                {0, 7, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD}, // DEAD
+                {0, 6, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD}, // DEAD
                 {0, 7, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD}, // ATTACK1
                 {0, 7, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD}, // ATTACK2
                 {0, 2, 0, 0, 0.1f, 0.1f, ONESHOT_WIZARD}, // HURT
@@ -141,7 +141,7 @@ class Wizard {
         }
 
         void move() {
-            if (!hasFinishedAttack || state == HURT_WIZARD) return; // Prevent movement if hurt is playing
+            if (!hasFinishedAttack || state == HURT_WIZARD || state == DEAD_WIZARD) return; // Prevent movement if hurt or dead
         
             float moveSpeed = 300.0f;
             velocity.x = 0.0f;
@@ -156,7 +156,7 @@ class Wizard {
                 direction = RIGHT_WIZARD;
                 if (isOnGround) state = RUN_WIZARD;
             } 
-            else if (isOnGround) {
+            else if (isOnGround && state != DEAD_WIZARD) { // Prevent switching to idle if dead
                 state = IDLE_WIZARD;
             }
         
@@ -164,7 +164,6 @@ class Wizard {
                 velocity.y = JUMP_FORCE_WIZARD;
                 state = JUMP_WIZARD;
                 isOnGround = false;
-        
                 animations[JUMP_WIZARD].currentFrame = animations[JUMP_WIZARD].firstFrame;
             }
         
@@ -185,7 +184,7 @@ class Wizard {
             if (IsKeyPressed(KEY_H)) {
                 takeDamage(20);
             }
-        }
+        }        
         
         void applyVelocity() {
             float deltaTime = GetFrameTime();
