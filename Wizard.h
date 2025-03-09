@@ -82,6 +82,7 @@ class Wizard {
         }
 
         void takeDamage(int damage) {
+            velocity.x = 0;
             health -= damage;
             if (health <= 0) {
                 health = 0;
