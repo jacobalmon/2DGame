@@ -47,6 +47,12 @@ class Goblin {
         bool isAttacking = false;
         bool hasFinishedAttack = true;
         int health = 100; // Goblin's health
+        bool isWalkingSoundPlaying = false;
+
+        Sound aoeSound;
+        Sound deadSound;
+        Sound attackSound;
+        Sound walkSound;
     
         Goblin(Vector2 position) {
             rect = (Rectangle) {position.x, position.y, 64.0f, 64.0f};
@@ -68,6 +74,11 @@ class Goblin {
             for (auto& sprite : sprites) {
                 UnloadTexture(sprite);
             }
+
+            UnloadSound(deadSound);
+            UnloadSound(attackSound);
+            UnloadSound(aoeSound);
+            UnloadSound(walkSound);
         }
     
         void loadTextures() {
@@ -78,6 +89,13 @@ class Goblin {
             sprites[ATTACK_AOE] = LoadTexture("assets/Goblin/Hobgoblin Attack 3/Hobgoblin Attack 3.png");
             sprites[IDLE_GOBLIN] = LoadTexture("assets/Goblin/Hobgoblin Idle/GoblinK Idle.png");
             sprites[WALK_GOBLIN] = LoadTexture("assets/Goblin/Hobgoblin Walk/Hobgoblin Walk.png");
+        }
+
+        void loadSounds() {
+            attackSound = LoadSound("sounds/goblin/thud-82914.wav");
+            deadSound = LoadSound("sounds/goblin/goblin-scream-87564.wav");
+            walkSound = LoadSound("sounds/goblin/walking-sound-effect-272246.wav");
+            aoeSound = LoadSound("sounds/goblin/elemental-magic-spell-cast-d-228349.wav");
         }
     
         void updateAnimation() {
@@ -155,14 +173,29 @@ class Goblin {
                 velocity.x = -moveSpeed;
                 direction = LEFT_GOBLIN;
                 state = WALK_GOBLIN;
+
+                if (!isWalkingSoundPlaying) {
+                    PlaySound(walkSound);
+                    isWalkingSoundPlaying = true;
+                }
             } 
             else if (IsKeyDown(KEY_C)) {
                 velocity.x = moveSpeed;
                 direction = RIGHT_GOBLIN;
                 state = WALK_GOBLIN;
+
+                if (!isWalkingSoundPlaying) {
+                    PlaySound(walkSound);
+                    isWalkingSoundPlaying = true;
+                }
             } 
             else {
                 state = IDLE_GOBLIN;
+
+                if (isWalkingSoundPlaying) {
+                    StopSound(walkSound);
+                    isWalkingSoundPlaying = false;
+                }
             }
         
             if (IsKeyPressed(KEY_KP_1) && hasFinishedAttack) {
@@ -170,18 +203,21 @@ class Goblin {
                 hasFinishedAttack = false;
                 velocity.x = 0;
                 animations[ATTACK_CLUB].currentFrame = animations[ATTACK_CLUB].firstFrame;
+                PlaySound(attackSound);
             }
             if (IsKeyPressed(KEY_KP_2) && hasFinishedAttack) {
                 state = ATTACK_STOMP;
                 hasFinishedAttack = false;
                 velocity.x = 0;
                 animations[ATTACK_STOMP].currentFrame = animations[ATTACK_STOMP].firstFrame;
+                PlaySound(attackSound);
             }
             if (IsKeyPressed(KEY_KP_3) && hasFinishedAttack) {
                 state = ATTACK_AOE;
                 hasFinishedAttack = false;
                 velocity.x = 0;
                 animations[ATTACK_AOE].currentFrame = animations[ATTACK_AOE].firstFrame;
+                PlaySound(aoeSound);
             }
         
             // **New: Press 'D' to make the Goblin die**
@@ -210,5 +246,6 @@ class Goblin {
             state = DEAD_GOBLIN;
             velocity.x = 0;
             animations[DEAD_GOBLIN].currentFrame = animations[DEAD_GOBLIN].firstFrame;
+            PlaySound(deadSound);
         }
     };
