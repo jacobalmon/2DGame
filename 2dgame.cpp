@@ -27,6 +27,7 @@ int main() {
     // Creating Goblin.
     Goblin goblin((Vector2) {400, 300});
     goblin.loadTextures();
+    goblin.loadSounds();
 
     // Creating Werewolf.
     Werewolf werewolf((Vector2 {400, 300}));
