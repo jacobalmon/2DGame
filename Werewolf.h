@@ -46,6 +46,11 @@ class Werewolf {
     
         bool isAttacking = false;
         bool hasFinishedAttack = true;
+        bool isWalkingSoundPlaying = false;
+
+        Sound attackSound;
+        Sound runSound;
+        Sound hurtSound;
     
         Werewolf(Vector2 position) {
             rect = { position.x, position.y, 64.0f, 64.0f };  
@@ -70,6 +75,10 @@ class Werewolf {
             for (auto& sprite : sprites) {
                 UnloadTexture(sprite);
             }
+
+            UnloadSound(attackSound);
+            UnloadSound(runSound);
+            UnloadSound(hurtSound);
         }
     
         void loadTextures() {
@@ -84,11 +93,18 @@ class Werewolf {
             sprites[RUN_WOLF] = LoadTexture("assets/Werewolf/Run.png");
             sprites[WALK_WOLF] = LoadTexture("assets/Werewolf/Walk.png");
         }
+
+        void loadSounds() {
+            attackSound = LoadSound("sounds/werewolf/movement-swipe-whoosh-3-186577.wav");
+            runSound = LoadSound("sounds/werewolf/run-112647.wav");
+            hurtSound = LoadSound("sounds/werewolf/whimper-104684.wav");
+        }
     
         void takeDamage(int damage) {
             velocity.x = 0;
             if (state != DEAD_WOLF && state != HURT_WOLF) {
                 health -= damage;
+                PlaySound(hurtSound);
                 if (health <= 0) {
                     health = 0;
                     state = DEAD_WOLF;  // Transition to dead state
@@ -162,6 +178,12 @@ class Werewolf {
             if (IsKeyDown(KEY_V)) {
                 velocity.x = -moveSpeed;
                 direction = LEFT_WOLF;
+
+                if (!isWalkingSoundPlaying) {
+                    PlaySound(runSound);
+                    isWalkingSoundPlaying = true;
+                }
+
                 if (isOnGround) {
                     if (state != ATTACK_SWIPE && state != ATTACK_RUN && state != HURT_WOLF) {
                         state = RUN_WOLF;
@@ -171,6 +193,12 @@ class Werewolf {
             else if (IsKeyDown(KEY_B)) {
                 velocity.x = moveSpeed;
                 direction = RIGHT_WOLF;
+
+                if (!isWalkingSoundPlaying) {
+                    PlaySound(runSound);
+                    isWalkingSoundPlaying = true;
+                }
+
                 if (isOnGround) {
                     if (state != ATTACK_SWIPE && state != ATTACK_RUN && state != HURT_WOLF) {
                         state = RUN_WOLF;
@@ -179,6 +207,10 @@ class Werewolf {
             } 
             else if (isOnGround && state != ATTACK_SWIPE && state != ATTACK_RUN && state != HURT_WOLF) {
                 state = IDLE_WOLF;
+                if (isWalkingSoundPlaying){
+                    StopSound(runSound);
+                    isWalkingSoundPlaying = false;
+                }
             }
                 
             // Jump logic
@@ -194,6 +226,7 @@ class Werewolf {
                 state = ATTACK_SWIPE;
                 hasFinishedAttack = false;
                 velocity.x = 0;
+                PlaySound(attackSound);
                 animations[ATTACK_SWIPE].currentFrame = animations[ATTACK_SWIPE].firstFrame;
             }
         
@@ -202,6 +235,7 @@ class Werewolf {
                 state = ATTACK_RUN;
                 hasFinishedAttack = false;
                 velocity.x = 0;
+                PlaySound(attackSound);
                 animations[ATTACK_RUN].currentFrame = animations[ATTACK_RUN].firstFrame;
             }
         
