@@ -45,6 +45,12 @@ class Wizard {
 
         bool isAttacking = false;
         bool hasFinishedAttack = true;
+        bool isWalkingSoundPlaying = false;
+
+        Sound attackSound;
+        Sound hurtSound;
+        Sound deathSound;
+        Sound walkSound;
 
         Wizard(Vector2 position) {
             rect = {position.x, position.y, 64.0f, 64.0f};  
@@ -67,6 +73,11 @@ class Wizard {
             for (auto& sprite : sprites) {
                 UnloadTexture(sprite);
             }
+
+            UnloadSound(attackSound);
+            UnloadSound(walkSound);
+            UnloadSound(hurtSound);
+            UnloadSound(deathSound);
         }
 
         void loadTextures() {
@@ -81,6 +92,13 @@ class Wizard {
             sprites[RUN_WIZARD] = LoadTexture("assets/Wizard/Sprites/Run.png");
         }
 
+        void loadSounds() {
+            attackSound = LoadSound("sounds/wizard/magic-strike-5856.wav");
+            hurtSound = LoadSound("sounds/wizard/male-hurt-sound-95206.wav");
+            walkSound = LoadSound("sounds/wizard/walking-sound-effect-272246.wav");
+            deathSound = LoadSound("sounds/wizard/man-death-scream-186763.wav");
+        }
+
         void takeDamage(int damage) {
             velocity.x = 0;
             health -= damage;
@@ -88,8 +106,11 @@ class Wizard {
                 health = 0;
                 state = DEAD_WIZARD;
                 hasFinishedAttack = true; // Prevent further actions
+                PlaySound(deathSound);
+                StopSound(walkSound);
             } else {
                 state = HURT_WIZARD;
+                PlaySound(hurtSound);
                 animations[HURT_WIZARD].currentFrame = animations[HURT_WIZARD].firstFrame;
             }
         }
@@ -150,15 +171,31 @@ class Wizard {
             if (IsKeyDown(KEY_N)) {
                 velocity.x = -moveSpeed;
                 direction = LEFT_WIZARD;
+
+                if (!isWalkingSoundPlaying) {
+                    PlaySound(walkSound);
+                    isWalkingSoundPlaying = true;
+                }
+
                 if (isOnGround) state = RUN_WIZARD;
             } 
             else if (IsKeyDown(KEY_M)) {
                 velocity.x = moveSpeed;
                 direction = RIGHT_WIZARD;
+
+                if (!isWalkingSoundPlaying) {
+                    PlaySound(walkSound);
+                    isWalkingSoundPlaying = true;
+                }
+
                 if (isOnGround) state = RUN_WIZARD;
             } 
             else if (isOnGround && state != DEAD_WIZARD) { // Prevent switching to idle if dead
                 state = IDLE_WIZARD;
+                if (isWalkingSoundPlaying) {
+                    StopSound(walkSound);
+                    isWalkingSoundPlaying = false;
+                }
             }
         
             if (IsKeyPressed(KEY_J) && isOnGround) {
@@ -172,6 +209,7 @@ class Wizard {
                 state = ATTACK1_WIZARD;
                 hasFinishedAttack = false;
                 velocity.x = 0;
+                PlaySound(attackSound);
                 animations[ATTACK1_WIZARD].currentFrame = animations[ATTACK1_WIZARD].firstFrame;
             }
         
@@ -179,6 +217,7 @@ class Wizard {
                 state = ATTACK2_WIZARD;
                 hasFinishedAttack = false;
                 velocity.x = 0;
+                PlaySound(attackSound);
                 animations[ATTACK2_WIZARD].currentFrame = animations[ATTACK2_WIZARD].firstFrame;
             }
         

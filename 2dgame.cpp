@@ -32,10 +32,12 @@ int main() {
     // Creating Werewolf.
     Werewolf werewolf((Vector2 {400, 300}));
     werewolf.loadTextures();
+    werewolf.loadSounds();
 
     // Creating Wizard.
     Wizard wizard((Vector2 {400, 300}));
     wizard.loadTextures();
+    wizard.loadSounds();
 
     // Creating Demon.
     Demon demon((Vector2 {400, 300}));

@@ -247,5 +247,6 @@ class Goblin {
             velocity.x = 0;
             animations[DEAD_GOBLIN].currentFrame = animations[DEAD_GOBLIN].firstFrame;
             PlaySound(deadSound);
+            StopSound(walkSound);
         }
     };

@@ -314,7 +314,6 @@ class Demon {
             // Damage control (only if the demon is not dead)
             if (IsKeyPressed(KEY_T) && !isDead) {
                 takeDamage(10);
-                PlaySound(hurtSound);
             }
         }           
 
@@ -335,6 +334,8 @@ class Demon {
         
             // Reduce health
             health -= damage;
+            PlaySound(hurtSound);
+            StopSound(walkSound);
             if (health <= 0) {
                 health = 0;
                 isDead = true;
