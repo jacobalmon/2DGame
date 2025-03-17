@@ -27,10 +27,13 @@ static std::vector<std::string> layerPaths = {
 
 int main() 
 {
-    InitWindow(1600, 800, "2D Game"); // <== Change the size to fit your screen
+    InitWindow(1600, 1000, "2D Game"); // <== Change the size to fit your screen
 
-     // Load TMX level
-    const char* tmxFile = "resources/Room1-B.tmx";
+    // Pause State Variable
+    bool isPaused = false;  // Game starts unpaused
+
+    // Load TMX level
+    const char* tmxFile = "resources/Room2.tmx";
     TmxMap* level = LoadTMX(tmxFile);
     if (level == nullptr) {
         TraceLog(LOG_ERROR, "Could not load level: %s", tmxFile);
@@ -53,7 +56,7 @@ int main()
     SetMusicVolume(backgroundMusic, 0.0f);  // Adjust the volume if necessary (0.0 to 1.0)
 
     // Creating Samurai.
-    Samurai samurai((Vector2) {400, 1135});
+    Samurai samurai((Vector2) {400, 6850});
     samurai.loadTextures();
     samurai.loadSounds();
 
@@ -77,7 +80,7 @@ int main()
     camera.target = (Vector2){400, 300};
     camera.offset = (Vector2){800, 400};
     camera.rotation = 0.0f;
-    camera.zoom = 2.0f; // Zooming in or out
+    camera.zoom = 1.0f; // Zooming in or out
 
     
 
@@ -86,29 +89,36 @@ int main()
     
     while (!WindowShouldClose()) 
     {
+        if (IsKeyPressed(KEY_P)) 
+        {
+            isPaused = !isPaused;
+        }
         // Update background music stream
         UpdateMusicStream(backgroundMusic);  // Ensure music keeps playing
 
-        // Update game objects
-        samurai.updateSamurai();
+        if (!isPaused) 
+        {
+            // Update game objects
+            samurai.updateSamurai();
 
-        goblin.move();
-        goblin.applyVelocity();
-        goblin.updateAnimation();
+            goblin.move();
+            goblin.applyVelocity();
+            goblin.updateAnimation();
 
-        werewolf.move();
-        werewolf.applyVelocity();
-        werewolf.updateAnimation();
+            werewolf.move();
+            werewolf.applyVelocity();
+            werewolf.updateAnimation();
 
-        wizard.move();
-        wizard.applyVelocity();
-        wizard.updateAnimation();
+            wizard.move();
+            wizard.applyVelocity();
+            wizard.updateAnimation();
 
-        demon.move();
-        demon.applyVelocity();
-        demon.updateAnimation();
+            demon.move();
+            demon.applyVelocity();
+            demon.updateAnimation();
 
-        camera.target = samurai.getPosition(); // Track the samurai
+            camera.target = samurai.getPosition(); // Track the samurai
+        }
 
         // Drawing.
         BeginDrawing();
@@ -148,6 +158,15 @@ int main()
             EndMode2D();
         
         samurai.drawHealthBar();
+        
+        // Draw Pause Screen
+        if (isPaused) 
+        {
+            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.5f));
+            DrawText("PAUSED", GetScreenWidth()/2 - 50, GetScreenHeight()/2 - 10, 30, WHITE);
+            DrawText("Press 'P' to resume", GetScreenWidth()/2 - 100, GetScreenHeight()/2 + 30, 20, WHITE);
+        }
+        
         EndDrawing();
     }
 
