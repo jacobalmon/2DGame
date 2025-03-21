@@ -36,6 +36,11 @@ Camera2D camera = { 0 };
 // Global TMX map variable
 TmxMap* tmxMap = NULL;
 
+// Global map variables
+int mapWidth = 128;  // Default map width in tiles
+int mapHeight = 32;  // Default map height in tiles
+const int mapTileSize = 16;
+
 // Key variables
 Texture2D keyTexture = { 0 };
 Vector2 keyPosition = { 0, 0 };
@@ -211,11 +216,11 @@ int main() {
     }
     
     // Initialize camera
-    camera.target = (Vector2){ 0, 0 };
+    camera.target = (Vector2){ screenWidth/2.0f, screenHeight/2.0f }; // Set initial target to center of screen
     camera.offset = (Vector2){ screenWidth/2.0f, screenHeight/2.0f };
     camera.rotation = 0.0f;
     camera.zoom = 1.0f;  // Zoom in for better visibility
-
+  
     // Keep the array of map paths for fallback loading
     const char* mapPaths[] = {
         "maps/Room1.tmx",
@@ -267,10 +272,6 @@ int main() {
     }
     
     // Calculate the map dimensions in pixels based on the loaded TMX map
-    const int mapTileSize = 16;
-    int mapWidth = 128;  // Default map width in tiles
-    int mapHeight = 32;  // Default map height in tiles
-    
     // Try to get actual dimensions from the loaded TMX map
     if (tmxMap != NULL && tmxMap->fileName != NULL) {
         // Get map dimensions from the loaded TMX file
@@ -298,6 +299,10 @@ int main() {
     
     // Initialize dash sound volume to match master volume
     samurai.setDashSoundVolume(0.8f * masterVolume);
+    
+    // Position camera at initial player position
+    Rectangle initialPlayerRect = samurai.getRect();
+    camera.target = (Vector2){ initialPlayerRect.x, initialPlayerRect.y };
 
     StartScreen startScreen;
     GameState gameState = START_SCREEN;
@@ -371,7 +376,6 @@ int main() {
                 if (samuraiBody && samuraiBody->active) {
                     samuraiPos.x = samuraiBody->rect.x + samuraiBody->rect.width / 2;
                     samuraiPos.y = samuraiBody->rect.y + samuraiBody->rect.height / 2;
-                }
 
                 // Check for key collection
                 if (samuraiBody && samuraiBody->active) {
