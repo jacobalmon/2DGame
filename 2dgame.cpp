@@ -35,6 +35,11 @@ Camera2D camera = { 0 };
 // Global TMX map variable
 TmxMap* tmxMap = NULL;
 
+// Global map variables
+int mapWidth = 128;  // Default map width in tiles
+int mapHeight = 32;  // Default map height in tiles
+const int mapTileSize = 16;
+
 // Key variables
 Texture2D keyTexture = { 0 };
 Vector2 keyPosition = { 0, 0 };
@@ -208,11 +213,10 @@ int main() {
     }
     
     // Initialize camera
-    camera.target = (Vector2){ 0, 0 };
+    camera.target = (Vector2){ screenWidth/2.0f, screenHeight/2.0f }; // Set initial target to center of screen
     camera.offset = (Vector2){ screenWidth/2.0f, screenHeight/2.0f };
     camera.rotation = 0.0f;
-    camera.zoom = 1.5f;  // Zoom in for better visibility
-
+    camera.zoom = 1.0f;  // Set zoom to 1.0 
     // Keep the array of map paths for fallback loading
     const char* mapPaths[] = {
         "maps/Room1.tmx",
@@ -264,10 +268,6 @@ int main() {
     }
     
     // Calculate the map dimensions in pixels based on the loaded TMX map
-    const int mapTileSize = 16;
-    int mapWidth = 128;  // Default map width in tiles
-    int mapHeight = 32;  // Default map height in tiles
-    
     // Try to get actual dimensions from the loaded TMX map
     if (tmxMap != NULL && tmxMap->fileName != NULL) {
         // Get map dimensions from the loaded TMX file
@@ -295,6 +295,10 @@ int main() {
     
     // Initialize dash sound volume to match master volume
     samurai.setDashSoundVolume(0.8f * masterVolume);
+    
+    // Position camera at initial player position
+    Rectangle initialPlayerRect = samurai.getRect();
+    camera.target = (Vector2){ initialPlayerRect.x, initialPlayerRect.y };
 
     // Game loop
     while (!WindowShouldClose()) {
@@ -365,6 +369,18 @@ int main() {
 
         // Check for enemy attacks hitting Samurai
         CollisionBox* samuraiHurtbox = samurai.getCollisionBox(HURTBOX);
+        
+        // Use these variables in collision checks to prevent unused variable warnings
+        // This is a placeholder - in a real game, you would check collisions with enemies
+        if (samuraiAttack && samuraiAttack->active) {
+            // Example of checking attack collision with enemies would go here
+            // For now, we're just using the variable to avoid warnings
+        }
+        
+        if (samuraiHurtbox && samuraiHurtbox->active) {
+            // Example of checking for enemy attacks hitting the samurai would go here
+            // For now, we're just using the variable to avoid warnings
+        }
 
         // Update key animation
         keyFrameTime += deltaTime;
@@ -388,21 +404,21 @@ int main() {
         
         // Update camera to follow player
         Rectangle samuraiRect = samurai.getRect();
-        camera.target = (Vector2){ samuraiRect.x, samuraiRect.y };
-        
-        // Ensure camera doesn't go beyond map boundaries
-        float halfScreenWidth = screenWidth / (2.0f * camera.zoom);
-        float halfScreenHeight = screenHeight / (2.0f * camera.zoom);
-        
-        // Calculate camera bounds, allowing movement throughout the entire map
-        if (camera.target.x < halfScreenWidth) camera.target.x = halfScreenWidth;
-        if (camera.target.x > mapWidthPixels - halfScreenWidth) camera.target.x = mapWidthPixels - halfScreenWidth;
-        if (camera.target.y < halfScreenHeight) camera.target.y = halfScreenHeight;
-        if (camera.target.y > mapHeightPixels - halfScreenHeight) camera.target.y = mapHeightPixels - halfScreenHeight;
+        camera.target = (Vector2){ samuraiRect.x + samuraiRect.width/2, samuraiRect.y + samuraiRect.height/2 };
         
         // Camera zoom controls
+        if (IsKeyPressed(KEY_KP_ADD) || IsKeyPressed(KEY_EQUAL)) {
+            camera.zoom += 0.1f;
+        }
+        if (IsKeyPressed(KEY_KP_SUBTRACT) || IsKeyPressed(KEY_MINUS)) {
+            camera.zoom -= 0.1f;
+        }
+        
+        // Mouse wheel zoom
         camera.zoom += ((float)GetMouseWheelMove() * 0.1f);
-        if (camera.zoom < 0.5f) camera.zoom = 0.5f;
+        
+        // Clamp zoom
+        if (camera.zoom < 0.2f) camera.zoom = 0.2f;
         if (camera.zoom > 3.0f) camera.zoom = 3.0f;
         
         // Drawing

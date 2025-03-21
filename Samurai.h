@@ -331,11 +331,12 @@ private:
         rect.y += velocity.y;  // Update vertical position.
 
         // Ensure character stays within map bounds instead of screen bounds
-        // Map dimensions are 128 tiles * 16 pixels = 2048 pixels wide
-        const float mapWidth = 128 * 16;
+        // Map dimensions should be passed from outside instead of hardcoded
+        extern int mapWidth;  // Use the external map width from 2dgame.cpp
+        const float mapWidthPixels = mapWidth * 16;  // Convert tiles to pixels
         
         if (rect.x < 0) rect.x = 0;
-        if (rect.x > mapWidth - rect.width) rect.x = mapWidth - rect.width;
+        if (rect.x > mapWidthPixels - rect.width) rect.x = mapWidthPixels - rect.width;
     }
 
     // Helper method to handle taking damage.
