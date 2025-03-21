@@ -310,6 +310,10 @@ private:
             velocity.x = (direction == RIGHT) ? dashSpeed : -dashSpeed;
         }
 
+        if (wasInAir) {
+            StopSound(runSound);
+        }
+
         // Check for attack input.
         if (IsKeyPressed(KEY_SPACE) && state != ATTACK_STATE && state != HURT_STATE && state != DEAD_STATE) {
             velocity.x = 0;
