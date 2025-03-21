@@ -8,7 +8,6 @@
 #include <unistd.h> // For getcwd()
 #include <limits.h> // For PATH_MAX
 #include <cstdio>
-#include "StartScreen.h"
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -54,8 +53,6 @@ const int KEY_FRAME_HEIGHT = 32; // Height of each frame in pixels
 Rectangle keyCollisionRect = { 0 }; // Collision rectangle for the key
 Sound keySound = { 0 }; // Sound to play when key is collected
 bool keyCollected = false; // Flag to track if key has been collected
-
-enum GameState {START_SCREEN, MAIN_GAME, EXIT};
 
 // Helper function to check collision between two collision boxes
 bool checkCharacterCollision(const CollisionBox& box1, const CollisionBox& box2) {
@@ -219,8 +216,7 @@ int main() {
     camera.target = (Vector2){ screenWidth/2.0f, screenHeight/2.0f }; // Set initial target to center of screen
     camera.offset = (Vector2){ screenWidth/2.0f, screenHeight/2.0f };
     camera.rotation = 0.0f;
-    camera.zoom = 1.0f;  // Zoom in for better visibility
-  
+    camera.zoom = 1.0f;  // Set zoom to 1.0 
     // Keep the array of map paths for fallback loading
     const char* mapPaths[] = {
         "maps/Room1.tmx",
@@ -304,209 +300,277 @@ int main() {
     Rectangle initialPlayerRect = samurai.getRect();
     camera.target = (Vector2){ initialPlayerRect.x, initialPlayerRect.y };
 
-    StartScreen startScreen;
-    GameState gameState = START_SCREEN;
-
     // Game loop
     while (!WindowShouldClose()) {
-
-        // Handle game state updates based on current game state
-        switch(gameState) {
-            case START_SCREEN: {
-                startScreen.Update();
-
-                if (startScreen.ShouldStartGame()) {
-                    gameState = MAIN_GAME;  // Transition to main game
-                }
-                if (startScreen.ShouldExitGame()) {
-                    gameState = EXIT;  // Exit the game
-                }
-
-                BeginDrawing();
-                startScreen.Draw();  // Draw the start screen
-                EndDrawing();
-                break;
+        // Update music stream
+        UpdateMusicStream(backgroundMusic);
+        
+        // Toggle music with M key
+        if (IsKeyPressed(KEY_M)) {
+            if (IsMusicStreamPlaying(backgroundMusic)) {
+                PauseMusicStream(backgroundMusic);
+            } else {
+                ResumeMusicStream(backgroundMusic);
             }
+        }
+        
+        // Volume control with + and - keys
+        if (IsKeyPressed(KEY_EQUAL)) { // + key
+            masterVolume += 0.1f;
+            if (masterVolume > 1.0f) masterVolume = 1.0f;
+            SetMusicVolume(backgroundMusic, 0.5f * masterVolume);
+            SetSoundVolume(demonChantSound, 0.6f * masterVolume);
+            // Apply master volume to dash sound
+            samurai.setDashSoundVolume(0.8f * masterVolume);
+        }
+        
+        if (IsKeyPressed(KEY_MINUS)) { // - key
+            masterVolume -= 0.1f;
+            if (masterVolume < 0.0f) masterVolume = 0.0f;
+            SetMusicVolume(backgroundMusic, 0.5f * masterVolume);
+            SetSoundVolume(demonChantSound, 0.6f * masterVolume);
+            // Apply master volume to dash sound
+            samurai.setDashSoundVolume(0.8f * masterVolume);
+        }
+        
+        // Toggle collision box visibility with F1 key
+        if (IsKeyPressed(KEY_F1)) {
+            showCollisionBoxes = !showCollisionBoxes;
+            printf("Collision boxes visibility: %s\n", showCollisionBoxes ? "ON" : "OFF");
+        }
+        
+        // Get frame time
+        float deltaTime = GetFrameTime();
+        
+        // Update characters
+        samurai.updateSamurai();
 
-            case MAIN_GAME: {
-                // Update music stream
-                UpdateMusicStream(backgroundMusic);
+        // Get samurai position for enemies to target
+        Vector2 samuraiPos = {0, 0};
+        CollisionBox* samuraiBody = samurai.getCollisionBox(BODY);
+        if (samuraiBody && samuraiBody->active) {
+            samuraiPos.x = samuraiBody->rect.x + samuraiBody->rect.width / 2;
+            samuraiPos.y = samuraiBody->rect.y + samuraiBody->rect.height / 2;
+        }
+
+        // Check collision between samurai and key
+        if (samuraiBody && samuraiBody->active) {
+            if (CheckCollisionRecs(samuraiBody->rect, keyCollisionRect) && !keyCollected) {
+                // Play key collection sound
+                PlaySound(keySound);
+                keyCollected = true;
                 
-                // Toggle music with M key
-                if (IsKeyPressed(KEY_M)) {
-                    if (IsMusicStreamPlaying(backgroundMusic)) {
-                        PauseMusicStream(backgroundMusic);
-                    } else {
-                        ResumeMusicStream(backgroundMusic);
-                    }
+                // Remove the large center "Key Collected!" text - don't display any messages here
+            }
+        }
+
+        // Check for collisions between Samurai's attack and enemies
+        CollisionBox* samuraiAttack = samurai.getCollisionBox(ATTACK);
+
+        // Check for enemy attacks hitting Samurai
+        CollisionBox* samuraiHurtbox = samurai.getCollisionBox(HURTBOX);
+        
+        // Use these variables in collision checks to prevent unused variable warnings
+        // This is a placeholder - in a real game, you would check collisions with enemies
+        if (samuraiAttack && samuraiAttack->active) {
+            // Example of checking attack collision with enemies would go here
+            // For now, we're just using the variable to avoid warnings
+        }
+        
+        if (samuraiHurtbox && samuraiHurtbox->active) {
+            // Example of checking for enemy attacks hitting the samurai would go here
+            // For now, we're just using the variable to avoid warnings
+        }
+
+        // Update key animation
+        keyFrameTime += deltaTime;
+        if (keyFrameTime >= KEY_FRAME_DURATION) {
+            keyFrameTime = 0.0f;
+            keyCurrentFrame = (keyCurrentFrame + 1) % KEY_FRAME_COUNT;
+        }
+
+        // Update key collision rectangle
+        keyCollisionRect = (Rectangle){
+            keyPosition.x + (KEY_FRAME_WIDTH),              // Center horizontally on the scaled key
+            keyPosition.y + (KEY_FRAME_HEIGHT),             // Center vertically on the scaled key
+            (float)KEY_FRAME_WIDTH,                         // Keep original collision size
+            (float)KEY_FRAME_HEIGHT
+        };
+        
+        // Update TMX animations
+        if (tmxMap != NULL && tmxMap->fileName != NULL) {
+            AnimateTMX(tmxMap);
+        }
+        
+        // Update camera to follow player
+        Rectangle samuraiRect = samurai.getRect();
+        camera.target = (Vector2){ samuraiRect.x + samuraiRect.width/2, samuraiRect.y + samuraiRect.height/2 };
+        
+        // Camera zoom controls
+        if (IsKeyPressed(KEY_KP_ADD) || IsKeyPressed(KEY_EQUAL)) {
+            camera.zoom += 0.1f;
+        }
+        if (IsKeyPressed(KEY_KP_SUBTRACT) || IsKeyPressed(KEY_MINUS)) {
+            camera.zoom -= 0.1f;
+        }
+        
+        // Mouse wheel zoom
+        camera.zoom += ((float)GetMouseWheelMove() * 0.1f);
+        
+        // Clamp zoom
+        if (camera.zoom < 0.2f) camera.zoom = 0.2f;
+        if (camera.zoom > 3.0f) camera.zoom = 3.0f;
+        
+        // Drawing
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+        
+        // Begin 2D camera mode
+        BeginMode2D(camera);
+        
+        // Draw the TMX map if loaded, otherwise fall back to the tiled background
+        if (tmxMap != NULL && tmxMap->fileName != NULL) {
+            // Remove all debug prints about drawing TMX map
+            
+            // Draw the TMX map
+            DrawTMX(tmxMap, &camera, 0, 0, WHITE);
+        } else {
+            // Fall back to the original tiled background
+            // Draw the background texture
+            // Tiled approach to make it fill the viewable area
+            float tileWidth = backgroundTexture.width;
+            float tileHeight = backgroundTexture.height;
+            
+            // Calculate how many tiles needed based on camera zoom and window size
+            int tilesX = (int)((screenWidth / camera.zoom) / tileWidth) + 2;  // +2 for safety
+            int tilesY = (int)((screenHeight / camera.zoom) / tileHeight) + 2;
+            
+            // Calculate starting positions based on camera target to create a parallax effect
+            float startX = (int)(camera.target.x / 2 - (tilesX * tileWidth) / 2);
+            float startY = (int)(camera.target.y / 2 - (tilesY * tileHeight) / 2);
+            
+            // Draw the tiled background
+            for (int y = 0; y < tilesY; y++) {
+                for (int x = 0; x < tilesX; x++) {
+                    DrawTexture(
+                        backgroundTexture, 
+                        startX + x * tileWidth, 
+                        startY + y * tileHeight, 
+                        WHITE
+                    );
                 }
+            }
+        }
+        
+        // Draw background floor (only if needed)
+        DrawRectangle(0, floorLevel, mapWidthPixels, floorHeight, DARKGRAY);
 
-                // Volume control with + and - keys
-                if (IsKeyPressed(KEY_EQUAL)) { // + key
-                    masterVolume += 0.1f;
-                    if (masterVolume > 1.0f) masterVolume = 1.0f;
-                    SetMusicVolume(backgroundMusic, 0.5f * masterVolume);
-                    SetSoundVolume(demonChantSound, 0.6f * masterVolume);
-                    samurai.setDashSoundVolume(0.8f * masterVolume);
-                }
-
-                if (IsKeyPressed(KEY_MINUS)) { // - key
-                    masterVolume -= 0.1f;
-                    if (masterVolume < 0.0f) masterVolume = 0.0f;
-                    SetMusicVolume(backgroundMusic, 0.5f * masterVolume);
-                    SetSoundVolume(demonChantSound, 0.6f * masterVolume);
-                    samurai.setDashSoundVolume(0.8f * masterVolume);
-                }
-
-                // Toggle collision box visibility with F1 key
-                if (IsKeyPressed(KEY_F1)) {
-                    showCollisionBoxes = !showCollisionBoxes;
-                    printf("Collision boxes visibility: %s\n", showCollisionBoxes ? "ON" : "OFF");
-                }
-
-                // Get frame time for updates
-                float deltaTime = GetFrameTime();
-
-                // Update samurai character
-                samurai.updateSamurai();
-
-                // Get samurai position for collision detection
-                Vector2 samuraiPos = {0, 0};
-                CollisionBox* samuraiBody = samurai.getCollisionBox(BODY);
-                if (samuraiBody && samuraiBody->active) {
-                    samuraiPos.x = samuraiBody->rect.x + samuraiBody->rect.width / 2;
-                    samuraiPos.y = samuraiBody->rect.y + samuraiBody->rect.height / 2;
-
-                // Check for key collection
-                if (samuraiBody && samuraiBody->active) {
-                    if (CheckCollisionRecs(samuraiBody->rect, keyCollisionRect) && !keyCollected) {
-                        // Play key collection sound
-                        PlaySound(keySound);
-                        keyCollected = true;
-                    }
-                }
-
-                // Check for collisions between Samurai's attack and enemies
-                CollisionBox* samuraiAttack = samurai.getCollisionBox(ATTACK);
-
-                // Check for enemy attacks hitting Samurai
-                CollisionBox* samuraiHurtbox = samurai.getCollisionBox(HURTBOX);
-
-                // Update animations and collision rectangles
-                keyFrameTime += deltaTime;
-                if (keyFrameTime >= KEY_FRAME_DURATION) {
-                    keyFrameTime = 0.0f;
-                    keyCurrentFrame = (keyCurrentFrame + 1) % KEY_FRAME_COUNT;
-                }
-
-                // Update key collision rectangle
-                keyCollisionRect = (Rectangle){
-                    keyPosition.x + (KEY_FRAME_WIDTH),              // Center horizontally on the scaled key
-                    keyPosition.y + (KEY_FRAME_HEIGHT),             // Center vertically on the scaled key
-                    (float)KEY_FRAME_WIDTH,                         // Keep original collision size
+        // Draw characters - moved inside camera mode
+        samurai.draw();
+        
+        // If the key is not collected, draw it in its original position
+        if (!keyCollected) {
+            // Source rectangle for current frame of key
+            Rectangle keySource = {
+                (float)(keyCurrentFrame * KEY_FRAME_WIDTH),  // x position in sprite sheet
+                0.0f,                              // y position in sprite sheet
+                (float)KEY_FRAME_WIDTH,           // width of one frame
+                (float)KEY_FRAME_HEIGHT           // height of frame
+            };
+            
+            // Draw the key with animation
+            DrawTexturePro(
+                keyTexture,
+                keySource,
+                (Rectangle){
+                    keyPosition.x,
+                    keyPosition.y,
+                    (float)KEY_FRAME_WIDTH,
                     (float)KEY_FRAME_HEIGHT
+                },
+                (Vector2){0, 0},
+                keyRotation,
+                WHITE
+            );
+        } else {
+            // Key is collected, draw it above the samurai
+            CollisionBox* samuraiBody = samurai.getCollisionBox(BODY);
+            if (samuraiBody && samuraiBody->active) {
+                // Source rectangle for current frame of key
+                Rectangle keySource = {
+                    (float)(keyCurrentFrame * KEY_FRAME_WIDTH),  // x position in sprite sheet
+                    0.0f,                              // y position in sprite sheet
+                    (float)KEY_FRAME_WIDTH,           // width of one frame
+                    (float)KEY_FRAME_HEIGHT           // height of frame
                 };
-
-                // Update TMX animations
-                if (tmxMap != NULL && tmxMap->fileName != NULL) {
-                    AnimateTMX(tmxMap);
-                }
-
-                // Update camera to follow player, ensuring it stays within map boundaries
-                Rectangle samuraiRect = samurai.getRect();
-                camera.target = (Vector2){ samuraiRect.x, samuraiRect.y };
-
-                float halfScreenWidth = screenWidth / (2.0f * camera.zoom);
-                float halfScreenHeight = screenHeight / (2.0f * camera.zoom);
-
-                // Ensure camera doesn't go out of bounds
-                if (camera.target.x < halfScreenWidth) camera.target.x = halfScreenWidth;
-                if (camera.target.x > mapWidthPixels - halfScreenWidth) camera.target.x = mapWidthPixels - halfScreenWidth;
-                if (camera.target.y < halfScreenHeight) camera.target.y = halfScreenHeight;
-                if (camera.target.y > mapHeightPixels - halfScreenHeight) camera.target.y = mapHeightPixels - halfScreenHeight;
-
-                // Camera zoom controls
-                camera.zoom += ((float)GetMouseWheelMove() * 0.1f);
-                if (camera.zoom < 0.5f) camera.zoom = 0.5f;
-                if (camera.zoom > 3.0f) camera.zoom = 3.0f;
-
-                // Begin drawing
-                BeginDrawing();
-                ClearBackground(RAYWHITE);
-
-                // 2D camera mode for proper drawing
-                BeginMode2D(camera);
-
-                // Draw background
-                if (tmxMap != NULL && tmxMap->fileName != NULL) {
-                    DrawTMX(tmxMap, &camera, 0, 0, WHITE);
-                } else {
-                    float tileWidth = backgroundTexture.width;
-                    float tileHeight = backgroundTexture.height;
-                    int tilesX = (int)((screenWidth / camera.zoom) / tileWidth) + 2;
-                    int tilesY = (int)((screenHeight / camera.zoom) / tileHeight) + 2;
-                    float startX = (int)(camera.target.x / 2 - (tilesX * tileWidth) / 2);
-                    float startY = (int)(camera.target.y / 2 - (tilesY * tileHeight) / 2);
-
-                    for (int y = 0; y < tilesY; y++) {
-                        for (int x = 0; x < tilesX; x++) {
-                            DrawTexture(backgroundTexture, startX + x * tileWidth, startY + y * tileHeight, WHITE);
-                        }
-                    }
-                }
-
-                // Draw characters and key
-                samurai.draw();
-                if (!keyCollected) {
-                    Rectangle keySource = {
-                        (float)(keyCurrentFrame * KEY_FRAME_WIDTH), 0.0f, 
-                        (float)KEY_FRAME_WIDTH, (float)KEY_FRAME_HEIGHT
-                    };
-                    DrawTexturePro(keyTexture, keySource, (Rectangle){ keyPosition.x, keyPosition.y, (float)KEY_FRAME_WIDTH, (float)KEY_FRAME_HEIGHT }, (Vector2){0, 0}, keyRotation, WHITE);
-                } else {
-                    CollisionBox* samuraiBody = samurai.getCollisionBox(BODY);
-                    if (samuraiBody && samuraiBody->active) {
-                        Rectangle keySource = { (float)(keyCurrentFrame * KEY_FRAME_WIDTH), 0.0f, (float)KEY_FRAME_WIDTH, (float)KEY_FRAME_HEIGHT };
-                        DrawTexturePro(keyTexture, keySource, (Rectangle){ samuraiBody->rect.x + samuraiBody->rect.width/2 - KEY_FRAME_WIDTH/2, samuraiBody->rect.y - KEY_FRAME_HEIGHT - 10, (float)KEY_FRAME_WIDTH, (float)KEY_FRAME_HEIGHT }, (Vector2){0, 0}, keyRotation, WHITE);
-                    }
-                }
-
-                // Draw collision boxes if enabled
-                if (showCollisionBoxes) {
-                    if (!keyCollected) {
-                        DrawRectangleLines(keyCollisionRect.x, keyCollisionRect.y, keyCollisionRect.width, keyCollisionRect.height, PURPLE);
-                    }
-                    drawCollisionBox(*samurai.getCollisionBox(BODY));
-                    drawCollisionBox(*samurai.getCollisionBox(ATTACK));
-                    drawCollisionBox(*samurai.getCollisionBox(HURTBOX));
-                }
-
-                // End camera mode and finalize drawing
-                EndMode2D();
-
-                // UI controls instructions
-                int instructionsY = screenHeight - 210;
-                int lineHeight = 25;
-
-                DrawText("GAME CONTROLS:", 10, instructionsY, 20, DARKGRAY);
-                DrawText("W or Up: Jump ", 10, instructionsY + lineHeight, 20, DARKGRAY);
-                DrawText("A/D or Left/Right: Move", 10, instructionsY + lineHeight*2, 20, DARKGRAY);
-                DrawText("Space: Attack", 10, instructionsY + lineHeight*3, 20, DARKGRAY);
-                DrawText("Double-tap A/D: Dash", 10, instructionsY + lineHeight*4, 20, DARKGRAY);
-                DrawText("F1: Toggle collision boxes", 10, instructionsY + lineHeight*5, 20, DARKGRAY);
-                DrawText("M: Toggle music", 10, instructionsY + lineHeight*6, 20, DARKGRAY);
-                DrawText("Mouse Wheel: Zoom", 10, instructionsY + lineHeight*7, 20, DARKGRAY);
-
-                EndDrawing();
-
-                break;
+                
+                // Draw the key floating above the samurai
+                DrawTexturePro(
+                    keyTexture,
+                    keySource,
+                    (Rectangle){
+                        samuraiBody->rect.x + samuraiBody->rect.width/2 - KEY_FRAME_WIDTH/2, // Center over samurai
+                        samuraiBody->rect.y - KEY_FRAME_HEIGHT - 10, // Above the samurai with a small gap
+                        (float)KEY_FRAME_WIDTH,
+                        (float)KEY_FRAME_HEIGHT
+                    },
+                    (Vector2){0, 0},
+                    keyRotation,
+                    WHITE
+                );
             }
-
-            case EXIT: {
-                // Handle exit (save state, cleanup, etc.)
-                safeExit();
-                break;
+        }
+        
+        // Draw collision boxes if enabled
+        if (showCollisionBoxes) {
+            // Draw key collision box
+            if (!keyCollected) {
+                DrawRectangleLines(
+                    keyCollisionRect.x,
+                    keyCollisionRect.y,
+                    keyCollisionRect.width,
+                    keyCollisionRect.height,
+                    PURPLE  // Use purple to distinguish from other collision boxes
+                );
             }
+            
+            // Draw collision boxes for each character type
+            // For Samurai
+            CollisionBox* bodyBox = samurai.getCollisionBox(BODY);
+            if (bodyBox) drawCollisionBox(*bodyBox);
+            
+            CollisionBox* attackBox = samurai.getCollisionBox(ATTACK);
+            if (attackBox) drawCollisionBox(*attackBox);
+            
+            CollisionBox* hurtBox = samurai.getCollisionBox(HURTBOX);
+            if (hurtBox) drawCollisionBox(*hurtBox);
+        }
+        
+        // End 2D camera mode
+        EndMode2D();
+
+        // Draw UI elements on top of everything
+        EndMode2D();
+
+        // Move keyboard instructions to bottom left corner
+        int instructionsY = screenHeight - 210; // Starting Y position for instructions
+        int lineHeight = 25; // Height of each line of text
+        
+        DrawText("GAME CONTROLS:", 10, instructionsY, 20, DARKGRAY);
+        DrawText("W or Up: Jump (press twice for double jump)", 10, instructionsY + lineHeight, 20, DARKGRAY);
+        DrawText("A/D or Left/Right: Move", 10, instructionsY + lineHeight*2, 20, DARKGRAY);
+        DrawText("Space: Attack", 10, instructionsY + lineHeight*3, 20, DARKGRAY);
+        DrawText("Double-tap A/D: Dash", 10, instructionsY + lineHeight*4, 20, DARKGRAY);
+        DrawText("F1: Toggle collision boxes", 10, instructionsY + lineHeight*5, 20, DARKGRAY);
+        DrawText("M: Toggle music", 10, instructionsY + lineHeight*6, 20, DARKGRAY);
+        DrawText("Mouse Wheel: Zoom", 10, instructionsY + lineHeight*7, 20, DARKGRAY);
+
+        EndDrawing();
+        
+        // Check if window should close
+        if (WindowShouldClose()) {
+            // Use our custom exit function instead of letting the loop end naturally
+            safeExit();
         }
     }
 
