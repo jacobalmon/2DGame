@@ -183,8 +183,11 @@ private:
 
     // Helper method to handle movement input.
     void move(float deltaTime) {
+        // Check if currently in attack state - ensure animation completes
+        bool inAttackAnimation = (state == ATTACK_STATE);
+        
         // Handle blocking state
-        if (isBlocking()) {
+        if (isBlocking() && !inAttackAnimation) {
             velocity.x = 0; // Stop horizontal movement while blocking
             
             // Check if B key is released while blocking
@@ -206,9 +209,8 @@ private:
             }
         }
         
-        
         // Update dash timer if currently dashing
-        if (isDashing) {
+        if (isDashing && !inAttackAnimation) {
             dashTimer -= deltaTime;
             if (dashTimer <= 0.0f) {
                 isDashing = false;
@@ -222,7 +224,7 @@ private:
             rect.y = groundLevel;  // Ensure character is on ground.
             
             // Only transition from JUMP_STATE to IDLE_STATE when landing
-            if (state == JUMP_STATE) {
+            if (state == JUMP_STATE && !inAttackAnimation) {
                 state = IDLE_STATE;
                 animations[state].currentFrame = 0;  // Reset animation frame
                 wasInAir = false;
@@ -232,12 +234,12 @@ private:
             }
         }
 
-        if (wasInAir || isDashing) {
+        if ((wasInAir || isDashing) && !inAttackAnimation) {
             StopSound(runSound);
         }
 
-        // Check for jump input.
-        if (IsKeyPressed(KEY_W) && state != ATTACK_STATE) {
+        // Check for jump input - only if not attacking
+        if (IsKeyPressed(KEY_W) && !inAttackAnimation) {
             StopSound(runSound);
 
             if (!wasInAir) {
@@ -275,7 +277,7 @@ private:
             velocity.y += 0.5f;  // Gravity effect.
             
             // Maintain JUMP_STATE while in the air unless in special states
-            if (state != JUMP_STATE && state != ATTACK_STATE && state != HURT_STATE && state != DEAD_STATE) {
+            if (state != JUMP_STATE && !inAttackAnimation && state != HURT_STATE && state != DEAD_STATE) {
                 state = JUMP_STATE;
                 animations[state].currentFrame = 0;  // Reset animation frame
             }
@@ -284,8 +286,8 @@ private:
         // Current time for double tap detection
         float currentTime = GetTime();
         
-        // Handle left/right movement with double tap dash
-        if ((IsKeyPressed(KEY_A) || IsKeyPressed(KEY_LEFT)) && state != ATTACK_STATE) {
+        // Handle left/right movement with double tap dash - only if not attacking
+        if ((IsKeyPressed(KEY_A) || IsKeyPressed(KEY_LEFT)) && !inAttackAnimation) {
             state = RUN_STATE;
 
             if (canDash && (currentTime - lastAKeyPressTime) <= doubleTapTimeThreshold) {
@@ -300,7 +302,7 @@ private:
             lastAKeyPressTime = currentTime;
         }        
         
-        if ((IsKeyPressed(KEY_D) || IsKeyPressed(KEY_RIGHT)) && state != ATTACK_STATE) {
+        if ((IsKeyPressed(KEY_D) || IsKeyPressed(KEY_RIGHT)) && !inAttackAnimation) {
             state = RUN_STATE;
 
             if (canDash && (currentTime - lastDKeyPressTime) <= doubleTapTimeThreshold) {
@@ -315,8 +317,8 @@ private:
             lastDKeyPressTime = currentTime;
         }     
         
-        // Handle movement based on key press and dash state
-        if ((IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) && !isDashing && state != ATTACK_STATE) {
+        // Handle movement based on key press and dash state - only if not attacking
+        if ((IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) && !isDashing && !inAttackAnimation) {
             if (!isRunning) {
                 PlaySound(runSound);
                 isRunning = true;
@@ -330,7 +332,7 @@ private:
             if (state != JUMP_STATE && state != HURT_STATE && state != DEAD_STATE) {
                 state = RUN_STATE;
             }
-        } else if ((IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) && !isDashing && state != ATTACK_STATE) {
+        } else if ((IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) && !isDashing && !inAttackAnimation) {
             if (!isRunning) {
                 PlaySound(runSound);
                 isRunning = true;
@@ -344,7 +346,7 @@ private:
             if (state != JUMP_STATE && state != HURT_STATE && state != DEAD_STATE) {
                 state = RUN_STATE;
             }
-        } else if (!isDashing && state != ATTACK_STATE) { // Only stop movement if not dashing
+        } else if (!isDashing && !inAttackAnimation) { // Only stop movement if not dashing and not attacking
             velocity.x = 0;
             if (isRunning) {
                 state = IDLE_STATE;
@@ -353,13 +355,16 @@ private:
             }
         }
 
-        // Apply dash movement
+        // Apply dash movement - even during attack to maintain momentum
         if (isDashing) {
             velocity.x = (direction == RIGHT) ? dashSpeed : -dashSpeed;
+        } else if (inAttackAnimation) {
+            // During attack animation, maintain zero velocity
+            velocity.x = 0;
         }
 
-        // Check for block input
-        if (IsKeyDown(KEY_B) && !blocking && state != ATTACK_STATE && state != HURT_STATE && state != DEAD_STATE) {
+        // Check for block input - only if not attacking
+        if (IsKeyDown(KEY_B) && !blocking && !inAttackAnimation && state != HURT_STATE && state != DEAD_STATE) {
             blocking = true;
             state = BLOCK_STATE;
             animations[state].currentFrame = 0;  // Reset animation frame
@@ -369,8 +374,8 @@ private:
         
         // Note: Block release is handled in the isBlocking() condition at the beginning of move()
         
-        // Check for attack input.
-        if (IsKeyPressed(KEY_SPACE) && state != ATTACK_STATE && state != HURT_STATE && state != DEAD_STATE && !isBlocking()) {
+        // Check for attack input - only if not already attacking
+        if (IsKeyPressed(KEY_SPACE) && !inAttackAnimation && state != HURT_STATE && state != DEAD_STATE && !isBlocking()) {
             velocity.x = 0;
             state = ATTACK_STATE;  // Set to attack state.
             animations[state].currentFrame = 0;  // Reset animation frame.

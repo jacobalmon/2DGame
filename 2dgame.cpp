@@ -629,24 +629,38 @@ int main()
                         Vector2 samuraiPos = { samuraiRect.x + samuraiRect.width/2, samuraiRect.y + samuraiRect.height/2 };
                         float distance = Vector2Distance(demonPos, samuraiPos);
                         
-                        // Chase player if within range
-                        if (distance < demon->chaseRange && distance > demon->attackRange) {
-                            demon->state = WALK_DEMON;
-                            demon->direction = (samuraiPos.x < demonPos.x) ? LEFT_DEMON : RIGHT_DEMON;
-                            
-                            // Move toward player
-                            float moveDir = (demon->direction == LEFT_DEMON) ? -1.0f : 1.0f;
-                            demon->velocity.x = moveDir * demon->moveSpeed * 100.0f;
-                        } 
-                        // Attack if close enough
-                        else if (distance <= demon->attackRange) {
-                            if (!demon->isAttacking) {
-                                demon->attack();
+                        // Set direction based on player position regardless of distance
+                        demon->direction = (samuraiPos.x < demonPos.x) ? LEFT_DEMON : RIGHT_DEMON;
+                        
+                        // Only update state if not currently hurt
+                        // This ensures the hurt animation plays completely
+                        if (!demon->isHurt) {
+                            // Chase player if within range
+                            if (distance < demon->chaseRange && distance > demon->attackRange) {
+                                demon->state = WALK_DEMON;
+                                
+                                // Move toward player
+                                float moveDir = (demon->direction == LEFT_DEMON) ? -1.0f : 1.0f;
+                                demon->velocity.x = moveDir * demon->moveSpeed * 100.0f;
+                            } 
+                            // Attack if close enough
+                            else if (distance <= demon->attackRange) {
+                                if (!demon->isAttacking) {
+                                    demon->attack();
+                                }
+                                // If already attacking but not in attack animation state, use WALK_DEMON to keep animating
+                                else if (demon->state != ATTACK_DEMON) {
+                                    demon->state = WALK_DEMON;
+                                    demon->velocity.x = 0; // Don't move but keep animating
+                                }
                             }
-                        }
-                        // Idle if too far
-                        else {
-                            demon->state = IDLE_DEMON;
+                            // Idle if too far
+                            else {
+                                demon->state = IDLE_DEMON;
+                                demon->velocity.x = 0;
+                            }
+                        } else {
+                            // When in hurt state, stop moving
                             demon->velocity.x = 0;
                         }
                         

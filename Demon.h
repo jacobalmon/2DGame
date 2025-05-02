@@ -49,6 +49,7 @@ class Demon {
         bool isAttacking = false;
         bool hasFinishedAttack = true;
         bool isDead = false;
+        bool isHurt = false; // Flag to track if hurt animation is playing
 
         // Health related to damage and death
         int health;
@@ -198,6 +199,16 @@ class Demon {
                             // Stay on the last frame if dead
                             if (anim.currentFrame != 21) {
                                 anim.currentFrame = anim.lastFrame;
+                            }
+                        } else if (state == HURT_DEMON) {
+                            // For hurt animation, ensure it plays completely
+                            state = IDLE_DEMON;
+                            animations[state].currentFrame = 0;
+                            isHurt = false; // Reset hurt flag when animation completes
+                            
+                            // Play hurt sound again to ensure it's heard
+                            if (hurtSound.frameCount > 0 && !IsSoundPlaying(hurtSound)) {
+                                PlaySound(hurtSound);
                             }
                         } else {
                             // For all other one-shot animations, go back to idle
@@ -455,7 +466,7 @@ class Demon {
         }
 
         void takeDamage(int damage) {
-            if (!isDead) {
+            if (!isDead && !isHurt) { // Only take damage if not already hurt
                 health -= (damage - 24);
                 if (health <= 0) {
                     health = 0;
@@ -477,6 +488,8 @@ class Demon {
                     }
                 } else {
                     state = HURT_DEMON;
+                    isHurt = true; // Set hurt flag
+                    animations[state].currentFrame = 0; // Reset animation frame
                     velocity.x = 0;
                     
                     // Play hurt sound if available
