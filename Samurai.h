@@ -183,7 +183,7 @@ private:
 
     // Helper method to handle movement input.
     void move(float deltaTime) {
-        // If the samurai is blocking, prevent any movement
+        // Handle blocking state
         if (isBlocking()) {
             velocity.x = 0; // Stop horizontal movement while blocking
             
@@ -194,7 +194,7 @@ private:
                 animations[state].currentFrame = 0;  // Reset animation frame
                 printf("Blocking deactivated!\n"); // Debug output
             }
-            return;
+            return; // Skip other movement while blocking
         }
         
         // Update dash cooldown timer
@@ -361,17 +361,13 @@ private:
         // Check for block input
         if (IsKeyDown(KEY_B) && !blocking && state != ATTACK_STATE && state != HURT_STATE && state != DEAD_STATE) {
             blocking = true;
-            PlaySound(blockSound);
             state = BLOCK_STATE;
-            if (blockSound.frameCount > 0) {
-                PlaySound(blockSound);
-            } else {
-                printf("Block sound not loaded!\n"); // Debug output
-            }
+            animations[state].currentFrame = 0;  // Reset animation frame
+            PlaySound(blockSound);
             printf("Blocking activated!\n"); // Debug output
         }
         
-        // Block input is now handled in the isBlocking() condition above
+        // Note: Block release is handled in the isBlocking() condition at the beginning of move()
         
         // Check for attack input.
         if (IsKeyPressed(KEY_SPACE) && state != ATTACK_STATE && state != HURT_STATE && state != DEAD_STATE && !isBlocking()) {
