@@ -270,7 +270,7 @@ int main()
     InitAudioDevice();
 
     // Load Music.
-    backgroundMusic = LoadMusicStream("music/Lady Maria of the Astral Clocktower.mp3");
+    backgroundMusic = LoadMusicStream("music/03. Hunter's Dream.mp3");
     menuMusic = LoadMusicStream("music/Soul Of Cinder.mp3");
     
     SetTargetFPS(60);
